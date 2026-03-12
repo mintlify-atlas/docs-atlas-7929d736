@@ -1,0 +1,374 @@
+---
+title: HTTP Client Plugins
+description: HTTP client and server instrumentation plugins for Tomcat, Undertow, Jetty, and Java HTTP Client
+---
+
+## Overview
+
+The Qubership Profiler Agent provides comprehensive instrumentation for HTTP servers and clients. These plugins capture request/response details, timing information, headers, and errors for complete visibility into HTTP interactions.
+
+## Available HTTP Plugins
+
+<CardGroup cols={2}>
+  <Card title="Tomcat" icon="server">
+    Instrumentation for Tomcat 9.x and 10.x
+  </Card>
+  <Card title="Undertow" icon="server">
+    Instrumentation for Undertow versions before 2.3 and 2.3+
+  </Card>
+  <Card title="Jetty" icon="server">
+    Instrumentation for Jetty 9.x and 10.x+
+  </Card>
+  <Card title="Java HTTP Client" icon="network-wired">
+    Standard Java HTTP client instrumentation
+  </Card>
+  <Card title="Apache HTTP Client" icon="network-wired">
+    Apache HttpClient library instrumentation
+  </Card>
+  <Card title="Generic HTTP" icon="globe">
+    Generic HTTP instrumentation
+  </Card>
+</CardGroup>
+
+## Tomcat Plugins
+
+The profiler provides separate plugins for Tomcat versions to handle the javax.servlet to jakarta.servlet migration.
+
+### Tomcat 9.x and Earlier Plugin
+
+**Module**: `plugins:tomcat_http`
+
+**Description**: Instruments HTTP context for Tomcat 9.x and earlier that use `javax.servlet.*` packages.
+
+**Applicable For**:
+- Tomcat 9.x and earlier
+- WildFly 26.x and earlier
+- Spring Boot 2.x and earlier (when using Tomcat)
+
+**Configuration**: `config/minimal/50main/tomcat_http.xml`
+
+#### Capabilities
+
+- All servlet requests and responses
+- Asynchronous and synchronous requests from Spring MVC
+- Reactive web requests
+- TCP/IP network connections and I/O operations
+- Event loop and task execution
+
+#### Instrumentation Rules
+
+| Class | Method | Handler |
+|-------|--------|--------|
+| `org.apache.catalina.core.StandardEngineValve` | `invoke` | TomcatRequestHandler |
+| `org.springframework.web.servlet.mvc.method.annotation.ReactiveTypeHandler$AbstractEmitterSubscriber` | `run` | Exception handling |
+| `reactor.netty.http.server.HttpTrafficHandler` | `channelRead` | Traffic instrumentation |
+| `io.netty.channel.nio.NioEventLoop` | `runAllTasks` | Event loop tracking |
+| `org.apache.tomcat.util.net.SocketProcessorBase` | `run` | Socket processing |
+
+### Tomcat 10.x and Later Plugin
+
+**Module**: `plugins:tomcat10_http`
+
+**Description**: Instruments HTTP context for Tomcat 10.x and later that use `jakarta.servlet.*` packages.
+
+**Applicable For**:
+- Tomcat 10.x and later
+- WildFly 27.x and later
+- Spring Boot 3.x and later (when using Tomcat)
+
+**Configuration**: `config/minimal/50main/tomcat10_http.xml`
+
+<Note>
+The Tomcat 10.x plugin provides the same instrumentation capabilities as the 9.x plugin but targets the Jakarta EE namespace.
+</Note>
+
+#### What's Captured
+
+- HTTP method (GET, POST, PUT, DELETE, etc.)
+- Request URI and query parameters
+- Request and response headers
+- Response status code
+- Request/response body size
+- Execution time
+- Client IP address
+- Session information
+- Spring MVC reactive requests
+- Exception details
+
+## Undertow Plugins
+
+Undertow is a flexible, high-performance web server used by WildFly (JBoss) and other application servers.
+
+### Undertow < 2.3 Plugin
+
+**Module**: `plugins:undertow_http`
+
+**Description**: Provides deep insights into Undertow web applications using Java EE (`javax.servlet.*`).
+
+**Applicable For**:
+- Undertow < 2.3
+- WildFly (JBoss) 26 and earlier
+
+**Configuration**: `config/minimal/50main/undertow_http.xml`
+
+#### Monitored Aspects
+
+<Tabs>
+  <Tab title="Lifecycle Events">
+    - Application context initialization and destruction
+    - Individual servlet lifecycle
+    - Startup and shutdown issues detection
+  </Tab>
+  <Tab title="Session Management">
+    - Session creation and invalidation
+    - User activity tracking
+    - Session lifespan analysis
+  </Tab>
+  <Tab title="Network Connections">
+    - Connection endpoints (IP and port)
+    - Network-related problem debugging
+    - I/O operations
+  </Tab>
+  <Tab title="Filter Orchestration">
+    - Filter execution order
+    - Filter interaction
+    - Request/response filtering
+  </Tab>
+</Tabs>
+
+#### Instrumentation Rules
+
+| Class | Method | Handler |
+|-------|--------|--------|
+| `io.undertow.servlet.core.ApplicationListeners` | `requestInitialized` | UndertowRequestHandler |
+| `io.undertow.server.Connectors` | `executeRootHandler` | Queue wait time |
+| `io.undertow.servlet.handlers.FilterHandler$FilterChainImpl` | `doFilter` | User context |
+
+### Undertow 2.3 and Later Plugin
+
+**Module**: `plugins:undertow23_http`
+
+**Description**: Instruments Undertow 2.3.x and later with Jakarta EE 10 (`jakarta.servlet.*`).
+
+**Applicable For**:
+- Undertow 2.3 and later
+- WildFly (JBoss) 27 and later
+
+**Configuration**: `config/minimal/50main/undertow23_http.xml`
+
+<Note>
+The Undertow 2.3 plugin provides the same comprehensive monitoring capabilities as the earlier version but targets the Jakarta EE namespace.
+</Note>
+
+## Jetty Plugins
+
+Jetty is a lightweight, embeddable web server and servlet container.
+
+### Jetty 9 and Earlier Plugin
+
+**Module**: `plugins:jetty_http`
+
+**Description**: Instruments lightweight HTTP context for Jetty 9 and earlier using `javax.servlet.*`.
+
+**Applicable For**:
+- Jetty 9 and earlier with Java EE
+- Embedded Jetty applications
+
+**Configuration**: `config/minimal/50main/jetty_http.xml`
+
+#### Capabilities
+
+- All HTTP requests and responses via `ServletHandler`
+- Embedded Jetty microservices
+- Servlet lifecycle methods
+- Static content serving
+- Security checks
+- Error handling
+
+#### Instrumentation Rules
+
+| Class | Method | Handler |
+|-------|--------|--------|
+| `org.eclipse.jetty.servlet.ServletHandler` | `doHandle` | JettyRequestHandler |
+
+### Jetty 10.x and Later Plugin
+
+**Module**: `plugins:jetty10_http`
+
+**Description**: Instruments lightweight HTTP context for Jetty 10.x and later using `jakarta.servlet.*`.
+
+**Applicable For**:
+- Jetty 10.x and later with Jakarta EE 10
+- Modern embedded Jetty applications
+
+**Configuration**: `config/minimal/50main/jetty10_http.xml`
+
+## Java HTTP Client Plugin
+
+**Module**: `plugins:java_http_client`
+
+**Description**: Instruments the standard Java HTTP Client (introduced in Java 11).
+
+**Configuration**: `config/minimal/50main/java_http_client.xml`
+
+### Features
+
+- HTTP/1.1 and HTTP/2 support
+- Synchronous and asynchronous requests
+- WebSocket connections
+- Request/response headers
+- Timing information
+- Error tracking
+
+### What's Captured
+
+- Request URL and method
+- Request headers
+- Response status and headers
+- Response time
+- Connection details
+- WebSocket events
+- Exception information
+
+## Apache HTTP Client Plugin
+
+**Module**: `plugins:apache_httpclient`
+
+**Description**: Instruments the Apache HttpClient library for outbound HTTP calls.
+
+**Configuration**: `config/minimal/50main/apache_httpclient.xml`
+
+### Supported Operations
+
+- GET, POST, PUT, DELETE requests
+- Custom HTTP methods
+- Request/response headers
+- Connection pooling
+- Retry logic
+- Authentication
+
+## Generic HTTP Plugin
+
+**Module**: `plugins:http`
+
+**Description**: Provides generic HTTP instrumentation for common HTTP scenarios.
+
+**Configuration**: `config/minimal/50main/http.xml`
+
+This plugin serves as a fallback for HTTP interactions not covered by specific server or client plugins.
+
+## Vert.x Plugin
+
+**Module**: `plugins:vertx`
+
+**Description**: Instruments the Eclipse Vert.x reactive toolkit.
+
+**Configuration**: `config/minimal/50main/vertx.xml`
+
+### Capabilities
+
+- HTTP server and client
+- Event bus messages
+- Async operations
+- Reactive streams
+- WebSocket support
+
+## Servlet Namespace Migration
+
+Java EE to Jakarta EE migration changed the servlet namespace from `javax.servlet.*` to `jakarta.servlet.*`. The profiler provides separate plugins to handle both namespaces:
+
+| Server | Java EE (javax.*) | Jakarta EE (jakarta.*) |
+|--------|-------------------|------------------------|
+| **Tomcat** | 9.x and earlier (`tomcat_http`) | 10.x+ (`tomcat10_http`) |
+| **Undertow** | Before 2.3 (`undertow_http`) | 2.3+ (`undertow23_http`) |
+| **Jetty** | 9.x and earlier (`jetty_http`) | 10.x+ (`jetty10_http`) |
+| **WildFly** | 26 and earlier (use Undertow plugin) | 27+ (use Undertow23 plugin) |
+
+<Warning>
+Make sure to use the correct plugin version for your servlet container. Using the wrong plugin (javax vs jakarta) will result in instrumentation failure.
+</Warning>
+
+## Spring Boot Compatibility
+
+Spring Boot applications use embedded servlet containers. Choose the appropriate plugin based on your Spring Boot version:
+
+| Spring Boot Version | Servlet Container | Plugin to Use |
+|---------------------|-------------------|---------------|
+| Spring Boot 2.x | Tomcat 9.x | `tomcat_http` |
+| Spring Boot 3.x | Tomcat 10.x | `tomcat10_http` |
+| Spring Boot 2.x | Undertow < 2.3 | `undertow_http` |
+| Spring Boot 3.x | Undertow 2.3+ | `undertow23_http` |
+| Spring Boot 2.x | Jetty 9.x | `jetty_http` |
+| Spring Boot 3.x | Jetty 10.x | `jetty10_http` |
+
+## Configuration Example
+
+HTTP plugins are automatically enabled when the agent detects the corresponding servlet container. You can customize behavior through configuration:
+
+```xml
+<profiler-configuration>
+  <ruleset>
+    <rule>
+      <class>org.apache.catalina.core.StandardEngineValve</class>
+      <method>invoke</method>
+      <method-editor>TomcatRequestHandler</method-editor>
+    </rule>
+  </ruleset>
+</profiler-configuration>
+```
+
+## Performance Considerations
+
+<AccordionGroup>
+  <Accordion title="Low Overhead">
+    HTTP plugins use efficient instrumentation techniques to minimize performance impact. Overhead is typically less than 1-2% in production workloads.
+  </Accordion>
+  
+  <Accordion title="Selective Capture">
+    Plugins capture detailed information only for slow requests or errors, reducing data volume and overhead.
+  </Accordion>
+  
+  <Accordion title="Async Processing">
+    Event reporting happens asynchronously to avoid blocking request processing threads.
+  </Accordion>
+  
+  <Accordion title="Configurable Thresholds">
+    You can configure timing thresholds to control when detailed data is captured.
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Requests Not Being Captured">
+    - Verify you're using the correct plugin for your servlet container version
+    - Check that the servlet container is in the classpath
+    - Ensure the agent is attached with `-javaagent`
+    - Review agent logs for instrumentation errors
+  </Accordion>
+  
+  <Accordion title="Wrong Plugin Version">
+    If you see instrumentation errors related to javax.servlet or jakarta.servlet, you may be using the wrong plugin version. Check your servlet container version and use the appropriate plugin.
+  </Accordion>
+  
+  <Accordion title="Spring Boot Issues">
+    For Spring Boot applications, verify the embedded container type and version. Spring Boot 3.x requires Jakarta EE plugins (tomcat10_http, undertow23_http, jetty10_http).
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Framework Plugins" icon="layer-group" href="/plugins/frameworks">
+    Explore framework instrumentation
+  </Card>
+  <Card title="Distributed Tracing" icon="diagram-project" href="/plugins/distributed-tracing">
+    Integrate with tracing systems
+  </Card>
+  <Card title="Configuration" icon="gear" href="/setup/configuration">
+    Configure HTTP instrumentation
+  </Card>
+  <Card title="Monitoring" icon="chart-line" href="/operations/monitoring">
+    Monitor HTTP performance
+  </Card>
+</CardGroup>

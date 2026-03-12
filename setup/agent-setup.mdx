@@ -1,0 +1,408 @@
+---
+title: 'Agent Setup'
+description: 'Learn how to attach the Qubership Profiler Agent to different JVM applications'
+icon: 'plug'
+---
+
+The Qubership Profiler Agent is a Java agent that attaches to your JVM application to collect continuous tracing and profiling data. This guide covers how to attach the agent to various application servers and frameworks.
+
+## Prerequisites
+
+Before attaching the agent, ensure you have:
+
+- Java 17 or later installed
+- The `qubership-profiler-agent.jar` file
+- Appropriate permissions to modify JVM startup parameters
+
+## Basic Agent Attachment
+
+The agent is attached using the `-javaagent` JVM argument:
+
+```bash
+java -javaagent:/path/to/qubership-profiler-agent.jar YourApplication
+```
+
+### Agent Arguments
+
+You can specify additional plugin JARs as comma-separated arguments:
+
+```bash
+java -javaagent:/path/to/profiler.jar=lib/plugin1.jar,lib/plugin2.jar YourApplication
+```
+
+If no arguments are provided, the agent will auto-detect plugins in the `lib/` directory relative to the agent JAR location.
+
+## Application Server Configuration
+
+### Tomcat
+
+#### Linux/Unix
+
+Edit `catalina.sh` or create `setenv.sh` in the `bin/` directory:
+
+```bash setenv.sh
+export CATALINA_OPTS="$CATALINA_OPTS -javaagent:/opt/qubership/profiler/qubership-profiler-agent.jar"
+export CATALINA_OPTS="$CATALINA_OPTS -Dprofiler.home=/opt/qubership/profiler"
+export CATALINA_OPTS="$CATALINA_OPTS -Dprofiler.config=/opt/qubership/profiler/config/_config.xml"
+export CATALINA_OPTS="$CATALINA_OPTS -Dprofiler.dump=/var/log/profiler/dumps"
+```
+
+#### Windows
+
+Edit `catalina.bat` or create `setenv.bat` in the `bin/` directory:
+
+```batch setenv.bat
+set CATALINA_OPTS=%CATALINA_OPTS% -javaagent:C:\profiler\qubership-profiler-agent.jar
+set CATALINA_OPTS=%CATALINA_OPTS% -Dprofiler.home=C:\profiler
+set CATALINA_OPTS=%CATALINA_OPTS% -Dprofiler.config=C:\profiler\config\_config.xml
+set CATALINA_OPTS=%CATALINA_OPTS% -Dprofiler.dump=C:\profiler\dumps
+```
+
+### JBoss/WildFly
+
+Edit `standalone.conf` (or `domain.conf` for domain mode):
+
+```bash standalone.conf
+JAVA_OPTS="$JAVA_OPTS -javaagent:/opt/qubership/profiler/qubership-profiler-agent.jar"
+JAVA_OPTS="$JAVA_OPTS -Dprofiler.home=/opt/qubership/profiler"
+JAVA_OPTS="$JAVA_OPTS -Dprofiler.config=/opt/qubership/profiler/config/_config.xml"
+JAVA_OPTS="$JAVA_OPTS -Dprofiler.dump=/var/log/profiler/dumps"
+
+# Required for JBoss modules compatibility
+JAVA_OPTS="$JAVA_OPTS -Djboss.modules.system.pkgs=com.netcracker.profiler.agent"
+```
+
+<Note>
+The agent automatically adds itself to `jboss.modules.system.pkgs` at runtime, but you can also set it explicitly.
+</Note>
+
+### WebLogic
+
+Edit the server start script or use the WebLogic Admin Console:
+
+#### Using Start Script
+
+```bash
+export JAVA_OPTIONS="$JAVA_OPTIONS -javaagent:/opt/qubership/profiler/qubership-profiler-agent.jar"
+export JAVA_OPTIONS="$JAVA_OPTIONS -Dprofiler.home=/opt/qubership/profiler"
+export JAVA_OPTIONS="$JAVA_OPTIONS -Dprofiler.config=/opt/qubership/profiler/config/_config.xml"
+export JAVA_OPTIONS="$JAVA_OPTIONS -Dprofiler.dump=/var/log/profiler/dumps"
+```
+
+#### Using Admin Console
+
+1. Navigate to **Environment** → **Servers**
+2. Select your server
+3. Go to **Server Start** tab
+4. Add the agent parameters to **Arguments** field
+
+### Jetty
+
+Edit `start.ini` or use command-line arguments:
+
+```ini start.ini
+--exec
+-javaagent:/opt/qubership/profiler/qubership-profiler-agent.jar
+-Dprofiler.home=/opt/qubership/profiler
+-Dprofiler.config=/opt/qubership/profiler/config/_config.xml
+-Dprofiler.dump=/var/log/profiler/dumps
+```
+
+Or use command line:
+
+```bash
+java -javaagent:/opt/qubership/profiler/qubership-profiler-agent.jar \
+     -Dprofiler.home=/opt/qubership/profiler \
+     -jar start.jar
+```
+
+### Undertow (Standalone)
+
+When running Undertow as a standalone server:
+
+```bash
+java -javaagent:/opt/qubership/profiler/qubership-profiler-agent.jar \
+     -Dprofiler.home=/opt/qubership/profiler \
+     -Dprofiler.config=/opt/qubership/profiler/config/_config.xml \
+     -jar your-undertow-app.jar
+```
+
+## Spring Boot Applications
+
+### Executable JAR
+
+```bash
+java -javaagent:/opt/qubership/profiler/qubership-profiler-agent.jar \
+     -Dprofiler.home=/opt/qubership/profiler \
+     -Dprofiler.dump=/var/log/profiler/dumps \
+     -jar your-spring-boot-app.jar
+```
+
+### Spring Boot Maven Plugin
+
+Add to `pom.xml`:
+
+```xml pom.xml
+<plugin>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-maven-plugin</artifactId>
+    <configuration>
+        <jvmArguments>
+            -javaagent:/opt/qubership/profiler/qubership-profiler-agent.jar
+            -Dprofiler.home=/opt/qubership/profiler
+        </jvmArguments>
+    </configuration>
+</plugin>
+```
+
+### Spring Boot Gradle Plugin
+
+Add to `build.gradle`:
+
+```groovy build.gradle
+bootRun {
+    jvmArgs = [
+        '-javaagent:/opt/qubership/profiler/qubership-profiler-agent.jar',
+        '-Dprofiler.home=/opt/qubership/profiler',
+        '-Dprofiler.dump=/var/log/profiler/dumps'
+    ]
+}
+```
+
+## Docker Containers
+
+### Dockerfile
+
+```dockerfile Dockerfile
+FROM eclipse-temurin:21-jre
+
+# Copy the profiler agent
+COPY qubership-profiler-agent.jar /opt/profiler/agent.jar
+COPY profiler-config/ /opt/profiler/config/
+
+# Copy your application
+COPY your-app.jar /app/app.jar
+
+WORKDIR /app
+
+# Set profiler environment variables
+ENV JAVA_OPTS="-javaagent:/opt/profiler/agent.jar \
+               -Dprofiler.home=/opt/profiler \
+               -Dprofiler.config=/opt/profiler/config/_config.xml \
+               -Dprofiler.dump=/data/dumps"
+
+# Create dumps directory
+RUN mkdir -p /data/dumps
+
+CMD java $JAVA_OPTS -jar app.jar
+```
+
+### Docker Compose
+
+```yaml docker-compose.yml
+services:
+  app:
+    image: your-app:latest
+    environment:
+      JAVA_OPTS: >
+        -javaagent:/opt/profiler/agent.jar
+        -Dprofiler.home=/opt/profiler
+        -Dprofiler.dump=/data/dumps
+    volumes:
+      - ./profiler:/opt/profiler:ro
+      - profiler-dumps:/data/dumps
+    ports:
+      - "8080:8080"
+
+volumes:
+  profiler-dumps:
+```
+
+## Kubernetes Deployment
+
+### Using Init Container
+
+```yaml deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+spec:
+  template:
+    spec:
+      initContainers:
+      - name: profiler-agent
+        image: qubership/profiler-agent:latest
+        command: ['sh', '-c', 'cp -r /profiler/* /shared/']
+        volumeMounts:
+        - name: profiler
+          mountPath: /shared
+      
+      containers:
+      - name: app
+        image: myapp:latest
+        env:
+        - name: JAVA_OPTS
+          value: >
+            -javaagent:/opt/profiler/agent.jar
+            -Dprofiler.home=/opt/profiler
+            -Dprofiler.dump=/data/dumps
+        volumeMounts:
+        - name: profiler
+          mountPath: /opt/profiler
+        - name: dumps
+          mountPath: /data/dumps
+      
+      volumes:
+      - name: profiler
+        emptyDir: {}
+      - name: dumps
+        persistentVolumeClaim:
+          claimName: profiler-dumps
+```
+
+### Using ConfigMap for Configuration
+
+```yaml configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: profiler-config
+data:
+  _config.xml: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <profiler-configuration>
+        <log-retention max-age="8 days" max-size="2 Gb"/>
+        <!-- Additional configuration -->
+    </profiler-configuration>
+```
+
+Mount the ConfigMap:
+
+```yaml
+volumeMounts:
+- name: profiler-config
+  mountPath: /opt/profiler/config
+
+volumes:
+- name: profiler-config
+  configMap:
+    name: profiler-config
+```
+
+## Environment Variables
+
+The agent supports remote dump collection via environment variables:
+
+<ParamField path="REMOTE_DUMP_HOST" type="string">
+  Hostname or IP address of the remote dump collector service
+</ParamField>
+
+<ParamField path="REMOTE_DUMP_PORT_PLAIN" type="integer">
+  Port for plain (non-SSL) remote dump collection
+</ParamField>
+
+<ParamField path="REMOTE_DUMP_PORT_SSL" type="integer">
+  Port for SSL-encrypted remote dump collection
+</ParamField>
+
+<ParamField path="REMOTE_DUMP_PORT" type="integer">
+  Deprecated. Use REMOTE_DUMP_PORT_PLAIN or REMOTE_DUMP_PORT_SSL instead
+</ParamField>
+
+### Example with Remote Dump Collection
+
+```bash
+export REMOTE_DUMP_HOST=profiler-collector.example.com
+export REMOTE_DUMP_PORT_PLAIN=9090
+
+java -javaagent:/opt/qubership/profiler/qubership-profiler-agent.jar \
+     -jar your-app.jar
+```
+
+## Verification
+
+After attaching the agent, verify it's loaded correctly:
+
+### Check Logs
+
+Look for initialization messages in your application logs:
+
+```
+Profiler: initialized, version 3.1.3-SNAPSHOT
+Profiler: profiler.home == /opt/qubership/profiler
+Profiler: profiler.config == /opt/qubership/profiler/config/_config.xml
+Profiler: profiler.dump == /var/log/profiler/dumps
+```
+
+### Check JVM Arguments
+
+Verify the agent is attached:
+
+```bash
+ps aux | grep javaagent
+```
+
+You should see the `-javaagent` parameter in the process command line.
+
+### Verify Dump Directory
+
+Check that the dump directory is created and accessible:
+
+```bash
+ls -la /var/log/profiler/dumps
+```
+
+## Troubleshooting
+
+### Agent Not Loading
+
+<AccordionGroup>
+  <Accordion title="ClassNotFoundException or NoClassDefFoundError">
+    **Cause**: Missing plugin JARs or incorrect classpath.
+    
+    **Solution**: 
+    - Ensure all required plugin JARs are in the `lib/` directory
+    - Explicitly specify plugins: `-javaagent:profiler.jar=lib/plugin1.jar,lib/plugin2.jar`
+    - Check file permissions on the agent JAR and plugins
+  </Accordion>
+
+  <Accordion title="Agent JAR not found">
+    **Cause**: Incorrect path to the agent JAR file.
+    
+    **Solution**:
+    - Use absolute paths instead of relative paths
+    - Verify the file exists: `ls -la /path/to/qubership-profiler-agent.jar`
+    - Check for typos in the file path
+  </Accordion>
+
+  <Accordion title="Permission denied errors">
+    **Cause**: Insufficient permissions to read the agent JAR or write to dump directory.
+    
+    **Solution**:
+    - Ensure the user running the JVM has read access to the agent JAR
+    - Verify write permissions on the dump directory
+    - Use `chmod` and `chown` to fix permissions if needed
+  </Accordion>
+
+  <Accordion title="No profiling data generated">
+    **Cause**: Configuration issues or filters excluding all methods.
+    
+    **Solution**:
+    - Verify the configuration file exists and is valid XML
+    - Check that profiling rules don't exclude all application classes
+    - Review the `_config.xml` file for `<do-not-profile/>` rules
+    - Ensure the dump directory is writable
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/setup/configuration">
+    Learn about configuration options and settings
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/setup/deployment">
+    Production deployment best practices
+  </Card>
+</CardGroup>

@@ -1,80 +1,231 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Get started with Qubership Profiler Agent in minutes"
 ---
 
-## Get started in three steps
+This guide will help you attach the Qubership Profiler Agent to a JVM application and start collecting profiling data.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, ensure you have:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+- Java 17 or higher installed
+- A Java application you want to profile
+- The Qubership Profiler Agent distribution (see [Installation](/installation))
+
+## Quick Start Steps
+
+<Steps>
+  <Step title="Download the agent">
+    Download the latest Qubership Profiler Agent from the [GitHub releases page](https://github.com/Netcracker/qubership-profiler-agent/releases).
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    Extract the distribution archive:
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```bash
+    unzip qubership-profiler-agent-3.1.6.zip -d /opt/qubership/profiler
+    ```
+  </Step>
 
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+  <Step title="Attach the agent to your JVM">
+    Add the `-javaagent` flag to your Java application startup command:
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```bash
+    java -javaagent:/opt/qubership/profiler/lib/qubership-profiler-agent.jar \
+         -jar your-application.jar
+    ```
+    
+    <Tip>
+      The agent automatically discovers and loads all instrumentation plugins from the `lib` directory.
+    </Tip>
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Configure the collector endpoint">
+    Set environment variables to specify where profiling data should be sent:
+    
+    ```bash
+    export REMOTE_DUMP_HOST=your-collector-host
+    export REMOTE_DUMP_PORT_PLAIN=1715
+    
+    java -javaagent:/opt/qubership/profiler/lib/qubership-profiler-agent.jar \
+         -jar your-application.jar
+    ```
+    
+    <Note>
+      If no remote collector is configured, the agent will store profiling data locally in the dump directory.
+    </Note>
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Verify the agent is running">
+    Check your application logs for the profiler initialization message:
+    
+    ```
+    Profiler: initialized, version 3.1.6
+    ```
+    
+    You should also see connection information for the remote collector (if configured).
+  </Step>
+</Steps>
 
-### Step 3: Go live
+## Example: Profiling a Simple Application
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+Here's a complete example of running a Java application with the profiler agent:
 
-## Next steps
+<CodeGroup>
 
-Now that you have your docs running, explore these key features:
+```bash Docker
+docker run -e REMOTE_DUMP_HOST=collector.example.com \
+           -e REMOTE_DUMP_PORT_PLAIN=1715 \
+           -v /opt/qubership/profiler:/profiler \
+           your-app-image \
+           java -javaagent:/profiler/lib/qubership-profiler-agent.jar \
+                -jar /app/application.jar
+```
+
+```bash Standalone
+export PROFILER_HOME=/opt/qubership/profiler
+export REMOTE_DUMP_HOST=collector.example.com
+export REMOTE_DUMP_PORT_PLAIN=1715
+
+java -javaagent:$PROFILER_HOME/lib/qubership-profiler-agent.jar \
+     -jar /path/to/your-application.jar
+```
+
+```bash Kubernetes
+apiVersion: v1
+kind: Pod
+metadata:
+  name: profiled-app
+spec:
+  containers:
+  - name: app
+    image: your-app:latest
+    env:
+    - name: JAVA_OPTS
+      value: "-javaagent:/profiler/lib/qubership-profiler-agent.jar"
+    - name: REMOTE_DUMP_HOST
+      value: "profiler-collector-service"
+    - name: REMOTE_DUMP_PORT_PLAIN
+      value: "1715"
+    - name: CLOUD_NAMESPACE
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.namespace
+    - name: MICROSERVICE_NAME
+      value: "my-service"
+    volumeMounts:
+    - name: profiler
+      mountPath: /profiler
+  volumes:
+  - name: profiler
+    hostPath:
+      path: /opt/qubership/profiler
+```
+
+</CodeGroup>
+
+## What Gets Profiled?
+
+Once the agent is attached, it automatically collects:
 
 <CardGroup cols={2}>
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
+<Card title="Continuous Profiling" icon="chart-line">
+  CPU profiling data with call stacks and timing information
 </Card>
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
+<Card title="Request Traces" icon="route">
+  Slow requests and error traces with full context
 </Card>
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
+<Card title="SQL Queries" icon="database">
+  Captured SQL queries including bind parameters
 </Card>
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
+<Card title="Service Calls" icon="network-wired">
+  HTTP calls, queue messages, and distributed trace propagation
 </Card>
 
 </CardGroup>
 
+## Configuration Options
+
+The agent can be customized through configuration files and environment variables:
+
+### Basic Configuration
+
+The profiler home directory (`PROFILER_HOME`) contains:
+
+```
+/opt/qubership/profiler/
+├── lib/                              # Agent and plugin JARs
+│   ├── qubership-profiler-agent.jar
+│   ├── qubership-profiler-boot.jar
+│   ├── qubership-profiler-runtime.jar
+│   └── qubership-profiler-*.jar      # Plugin JARs
+└── config/                           # Configuration files
+    ├── _config.xml                   # Main configuration
+    └── logback.xml                   # Logging configuration
+```
+
+### Environment Variables
+
+Key environment variables for profiler configuration:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `REMOTE_DUMP_HOST` | Collector server hostname | (none) |
+| `REMOTE_DUMP_PORT_PLAIN` | Plain TCP port for collector | `1715` |
+| `REMOTE_DUMP_PORT_SSL` | SSL/TLS port for collector | (none) |
+| `FORCE_LOCAL_DUMP` | Force local dump even with remote configured | `false` |
+| `CLOUD_NAMESPACE` | Kubernetes namespace | Auto-detected |
+| `MICROSERVICE_NAME` | Service name for identification | Auto-detected |
+
+<Tip>
+  For a complete list of configuration options, see the [Configuration Reference](/setup/configuration).
+</Tip>
+
+## Viewing Profiling Data
+
+Profiling data can be accessed in several ways:
+
+1. **Remote Collector**: Data is streamed in real-time to a collector service
+2. **Local Files**: When no remote collector is configured, data is written to local dump files
+3. **Web UI**: Use the included profiler UI to visualize traces and performance data
+
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  The profiler uses minimal overhead instrumentation and is designed for production use.
 </Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+
+<Card title="Installation Guide" icon="download" href="/installation">
+  Learn about installation methods for different environments
+</Card>
+
+<Card title="Configuration" icon="gear" href="/setup/configuration">
+  Explore advanced configuration options
+</Card>
+
+<Card title="Plugin Overview" icon="puzzle-piece" href="/plugins/overview">
+  Discover available instrumentation plugins
+</Card>
+
+<Card title="Troubleshooting" icon="wrench" href="/operations/troubleshooting">
+  Common issues and solutions
+</Card>
+
+</CardGroup>
+
+## Getting Help
+
+<Warning>
+  If the agent fails to initialize, check that:
+  - The agent JAR path is correct and accessible
+  - Java 17+ is being used
+  - The `lib` directory contains all required JARs
+  - File permissions allow reading the agent files
+</Warning>
+
+For more help, see the [Troubleshooting Guide](/operations/troubleshooting) or [open an issue](https://github.com/Netcracker/qubership-profiler-agent/issues) on GitHub.

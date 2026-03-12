@@ -1,0 +1,542 @@
+---
+title: Monitoring
+description: Monitoring and observability best practices for the Qubership Profiler Agent
+---
+
+## Overview
+
+Effective monitoring of the Qubership Profiler Agent ensures that profiling data is being collected reliably and that the agent is not negatively impacting application performance. This guide covers key metrics, health checks, and observability practices.
+
+## Health Monitoring
+
+### Agent Health Indicators
+
+Monitor these key indicators to ensure the profiler agent is functioning correctly:
+
+<CardGroup cols={2}>
+  <Card title="Trace Collection" icon="chart-line">
+    Verify traces are being written to disk regularly
+    
+    ```bash
+    # Check recent trace files
+    find /path/to/dump/root -name "trace" -type d \
+      -exec ls -lt {} \; | head -20
+    ```
+  </Card>
+  
+  <Card title="Disk Usage" icon="hard-drive">
+    Monitor dump directory disk utilization
+    
+    ```bash
+    # Check dump folder size
+    du -sh /path/to/dump/root
+    
+    # Monitor growth over time
+    watch -n 60 'du -sh /path/to/dump/root'
+    ```
+  </Card>
+  
+  <Card title="Agent Process" icon="microchip">
+    Verify the Java agent is attached
+    
+    ```bash
+    # Check for agent in JVM args
+    ps aux | grep javaagent | grep profiler-agent
+    
+    # Verify agent JAR is loaded
+    jps -v | grep profiler-agent
+    ```
+  </Card>
+  
+  <Card title="Diagnostic Tools" icon="wrench">
+    Ensure diagtools sidecar is running
+    
+    ```bash
+    # Check diagtools process
+    ps aux | grep diagtools
+    
+    # Verify scheduled collection
+    ls -lt /tmp/diagnostic/*.td.txt | head -5
+    ```
+  </Card>
+</CardGroup>
+
+---
+
+## Performance Metrics
+
+### JVM Impact
+
+The profiler agent adds minimal overhead, but it's important to monitor:
+
+**CPU Overhead:**
+- Expected: < 2% CPU increase
+- Monitor: JVM process CPU usage before/after agent attachment
+
+**Memory Overhead:**
+- Expected: 50-200 MB additional heap usage
+- Monitor: Heap usage trends, GC frequency
+
+**Disk I/O:**
+- Expected: Periodic writes during trace flush
+- Monitor: I/O wait time, disk write throughput
+
+```bash
+# Monitor JVM with agent
+jstat -gcutil <pid> 1000 10
+
+# Check CPU usage
+top -p <pid>
+
+# Monitor disk I/O
+iostat -x 5 3
+```
+
+### Application Performance
+
+Key application metrics to monitor:
+
+<Tabs>
+  <Tab title="Response Times">
+    **What to monitor:**
+    - P50, P95, P99 response times
+    - Compare before/after agent deployment
+    
+    **Expected impact:**
+    - Minimal (&lt;1%) increase in response times
+    - No degradation for fast requests (&lt;100ms)
+    
+    **Alert if:**
+    - P99 increases by &gt;5%
+    - Slow request threshold changes significantly
+  </Tab>
+  
+  <Tab title="Throughput">
+    **What to monitor:**
+    - Requests per second
+    - Transaction completion rate
+    
+    **Expected impact:**
+    - No measurable throughput degradation
+    
+    **Alert if:**
+    - RPS decreases by >2%
+    - Transaction queue depth increases
+  </Tab>
+  
+  <Tab title="Errors">
+    **What to monitor:**
+    - Error rates
+    - Exception counts
+    - Failed transactions
+    
+    **Expected impact:**
+    - No change in error rates
+    
+    **Alert if:**
+    - Error rate increases after deployment
+    - New exception types appear
+  </Tab>
+</Tabs>
+
+---
+
+## Data Collection Monitoring
+
+### Trace File Health
+
+**File Structure Checks:**
+
+```bash
+# Verify directory structure exists
+find /path/to/dump/root -type d -name "trace" | head -10
+
+# Check for recent trace files (last hour)
+find /path/to/dump/root/*/$(date +%Y/%m/%d) \
+  -name "*.gz" -mmin -60
+
+# Verify file sizes are reasonable
+find /path/to/dump/root -name "*.gz" \
+  -exec ls -lh {} \; | tail -20
+```
+
+**Expected patterns:**
+- Trace files created every few minutes (depending on activity)
+- File sizes between 100KB - 50MB (varies by traffic)
+- No zero-byte files
+
+### Dump Folder Growth
+
+**Monitor disk usage trends:**
+
+```bash
+# Daily dump size
+du -sh /path/to/dump/root/$(date +%Y/%m/%d)
+
+# Weekly trend
+for day in {0..6}; do
+  date=$(date -d "$day days ago" +%Y/%m/%d)
+  echo -n "$date: "
+  du -sh /path/to/dump/root/$date 2>/dev/null || echo "No data"
+done
+```
+
+**Typical growth patterns:**
+- 100MB - 2GB per day (low traffic)
+- 2GB - 20GB per day (medium traffic)
+- 20GB - 100GB+ per day (high traffic)
+
+---
+
+## Diagnostic Collection Monitoring
+
+### Diagtools Health
+
+Monitor the diagtools sidecar to ensure diagnostic collection is working:
+
+```bash
+# Check thread dump collection (should run every DIAGNOSTIC_DUMP_INTERVAL)
+ls -lt /tmp/diagnostic/*.td.txt | head -5
+
+# Check TOP dumps
+ls -lt /tmp/diagnostic/*.top.txt | head -5
+
+# Check heap dumps (collected on OOM or manually)
+ls -lh /tmp/diagnostic/*.hprof.zip
+
+# Check diagtools logs
+tail -f /tmp/diagnostic/log/diagtools_schedule.log
+```
+
+### Upload Monitoring
+
+If uploading to a diagnostic collector:
+
+```bash
+# Check for upload errors in logs
+grep -i "upload.*fail" /tmp/diagnostic/log/*.log
+
+# Verify uploads are completing
+grep "Successfully uploaded" /tmp/diagnostic/log/*.log | tail -10
+
+# Check upload queue
+ls /tmp/diagnostic/*.hprof.zip | wc -l
+```
+
+---
+
+## Kubernetes Monitoring
+
+### Pod Health Checks
+
+**Readiness and Liveness Probes:**
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-with-profiler
+spec:
+  containers:
+  - name: app
+    image: my-app:latest
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8080
+      initialDelaySeconds: 60
+      periodSeconds: 10
+    readinessProbe:
+      httpGet:
+        path: /ready
+        port: 8080
+      initialDelaySeconds: 30
+      periodSeconds: 5
+```
+
+### Resource Monitoring
+
+**Container metrics to watch:**
+
+```bash
+# CPU usage
+kubectl top pod my-app-pod
+
+# Memory usage
+kubectl top pod my-app-pod --containers
+
+# Describe for resource limits
+kubectl describe pod my-app-pod | grep -A 10 Limits
+```
+
+**Recommended resource limits:**
+
+```yaml
+resources:
+  requests:
+    memory: "2Gi"
+    cpu: "1000m"
+  limits:
+    memory: "4Gi"
+    cpu: "2000m"
+```
+
+### Volume Monitoring
+
+**Check diagnostic volume usage:**
+
+```bash
+# Exec into pod
+kubectl exec -it my-app-pod -c diagtools -- sh
+
+# Check disk usage
+df -h /tmp/diagnostic
+
+# Check file counts
+find /tmp/diagnostic -type f | wc -l
+```
+
+---
+
+## Log Monitoring
+
+### Application Logs
+
+Monitor application logs for profiler-related messages:
+
+**Key log patterns:**
+
+```bash
+# Agent initialization
+grep "profiler.*initialized" /var/log/app.log
+
+# Configuration loaded
+grep "profiler.*config" /var/log/app.log
+
+# Errors or warnings
+grep -E "ERROR|WARN" /var/log/app.log | grep -i profiler
+```
+
+### Diagtools Logs
+
+```bash
+# Schedule command logs
+tail -f /tmp/diagnostic/log/diagtools_schedule.log
+
+# Heap dump logs
+tail -f /tmp/diagnostic/log/diagtools_heap.log
+
+# Scan logs
+tail -f /tmp/diagnostic/log/diagtools_scan.log
+```
+
+**Important log messages:**
+- `diagtool has shut down with code 0` - Clean shutdown
+- `Upload request failed` - Upload errors (check network/permissions)
+- `Dump request failed` - Collection errors (check Java process)
+
+---
+
+## Alerting Guidelines
+
+### Critical Alerts
+
+<AccordionGroup>
+  <Accordion title="No trace files in last hour">
+    **Severity:** Critical
+    
+    **Condition:**
+    ```bash
+    find /path/to/dump/root -name "*.gz" -mmin -60 | wc -l
+    # Result: 0
+    ```
+    
+    **Action:**
+    1. Check if agent is attached to JVM
+    2. Verify disk space available
+    3. Check file permissions on dump directory
+    4. Review application logs for profiler errors
+  </Accordion>
+  
+  <Accordion title="Disk usage >90%">
+    **Severity:** Critical
+    
+    **Condition:**
+    ```bash
+    df -h /path/to/dump/root | awk 'NR==2 {print $5}' | sed 's/%//'
+    # Result: >90
+    ```
+    
+    **Action:**
+    1. Run cleanup of old dumps immediately
+    2. Export recent data to archive
+    3. Increase volume size if needed
+    4. Review retention policies
+  </Accordion>
+  
+  <Accordion title="Agent process not found">
+    **Severity:** Critical
+    
+    **Condition:**
+    ```bash
+    ps aux | grep javaagent | grep profiler-agent
+    # Result: empty
+    ```
+    
+    **Action:**
+    1. Check JVM startup arguments
+    2. Verify agent JAR exists at specified path
+    3. Review pod/container restart logs
+    4. Redeploy with agent if necessary
+  </Accordion>
+</AccordionGroup>
+
+### Warning Alerts
+
+<AccordionGroup>
+  <Accordion title="Dump folder growing faster than expected">
+    **Severity:** Warning
+    
+    **Condition:** Daily growth >20% increase over baseline
+    
+    **Action:**
+    1. Review traffic patterns for anomalies
+    2. Check if slow request threshold is appropriate
+    3. Consider adjusting collection settings
+    4. Plan for increased storage capacity
+  </Accordion>
+  
+  <Accordion title="Upload failures">
+    **Severity:** Warning
+    
+    **Condition:**
+    ```bash
+    grep "upload.*fail" /tmp/diagnostic/log/*.log | wc -l
+    # Result: >5 in last hour
+    ```
+    
+    **Action:**
+    1. Check network connectivity to collector
+    2. Verify collector service is healthy
+    3. Check authentication credentials
+    4. Review upload timeout settings
+  </Accordion>
+  
+  <Accordion title="Memory usage trending up">
+    **Severity:** Warning
+    
+    **Condition:** JVM heap usage increasing >10% over 24 hours
+    
+    **Action:**
+    1. Check for memory leaks in application
+    2. Review profiler configuration for excessive retention
+    3. Analyze heap dumps for unusual patterns
+    4. Consider increasing heap size
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Metrics Collection
+
+### Prometheus Integration
+
+Expose profiler metrics for Prometheus scraping:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: profiler-metrics
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+spec:
+  selector:
+    app: my-app
+  ports:
+  - port: 8080
+    name: metrics
+```
+
+### Custom Metrics
+
+**Key metrics to track:**
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `profiler_traces_written_total` | Counter | Total traces written |
+| `profiler_slow_requests_total` | Counter | Slow requests captured |
+| `profiler_errors_total` | Counter | Errors captured |
+| `profiler_disk_usage_bytes` | Gauge | Dump folder disk usage |
+| `profiler_trace_file_size_bytes` | Histogram | Trace file sizes |
+| `diagtools_dumps_collected_total` | Counter | Thread/heap dumps collected |
+| `diagtools_upload_success_total` | Counter | Successful uploads |
+| `diagtools_upload_failures_total` | Counter | Failed uploads |
+
+---
+
+## Dashboard Examples
+
+### Grafana Dashboard
+
+**Key panels to include:**
+
+1. **Trace Collection Rate**
+   - Query: `rate(profiler_traces_written_total[5m])`
+   - Visualization: Graph
+
+2. **Disk Usage Trend**
+   - Query: `profiler_disk_usage_bytes`
+   - Visualization: Graph with threshold line
+
+3. **Slow Request Capture**
+   - Query: `rate(profiler_slow_requests_total[1h])`
+   - Visualization: Bar graph
+
+4. **Agent Health Status**
+   - Query: Custom health check
+   - Visualization: Single stat with color coding
+
+5. **Upload Success Rate**
+   - Query: `rate(diagtools_upload_success_total[5m]) / rate(diagtools_upload_attempts_total[5m])`
+   - Visualization: Gauge (target: >95%)
+
+---
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Regular Health Checks" icon="heartbeat">
+    - Run health checks every 5-15 minutes
+    - Alert on multiple consecutive failures
+    - Include checks in deployment validation
+  </Card>
+  
+  <Card title="Proactive Disk Management" icon="database">
+    - Set up automated cleanup of old dumps
+    - Archive data before deletion
+    - Monitor growth trends to predict capacity needs
+  </Card>
+  
+  <Card title="Performance Baselines" icon="chart-simple">
+    - Establish performance baselines before deployment
+    - Compare metrics regularly
+    - Investigate any significant deviations
+  </Card>
+  
+  <Card title="Log Aggregation" icon="file-lines">
+    - Centralize logs from all components
+    - Set up log-based alerts
+    - Retain logs for troubleshooting
+  </Card>
+</CardGroup>
+
+---
+
+## See Also
+
+- [Troubleshooting](/operations/troubleshooting) - Common issues and solutions
+- [CLI Tools](/operations/cli-tools) - Tools for data export and analysis
+- [Diagnostic Tools](/operations/diagnostic-tools) - Heap and thread dump collection

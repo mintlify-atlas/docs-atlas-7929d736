@@ -1,0 +1,492 @@
+---
+title: CLI Tools
+description: Java command-line tools for managing profiler dumps and exports
+---
+
+## Overview
+
+The Qubership Profiler Agent includes a comprehensive set of Java CLI tools for managing profiler data. These tools allow you to export, download, and analyze collected profiling data without requiring a running UI.
+
+## Installation
+
+The CLI tools are available in the `cli` module:
+
+```bash
+java -jar esc-cli.jar COMMAND [OPTIONS]
+```
+
+All commands support verbose output with `-v` or `-vv` flags for debugging.
+
+## Available Commands
+
+### list-servers
+
+List all available server names in a dump directory.
+
+```bash
+java -jar esc-cli.jar list-servers -r /path/to/dump/root
+```
+
+**Options:**
+- `-r, --dump-root PATH` - Root folder containing collected data (default: `execution-statistics-collector/dump`)
+
+**Example Output:**
+```
+Server: app-server-1
+Server: app-server-2
+Server: worker-node-3
+```
+
+---
+
+### export-dump
+
+Export collected data for a specific time-frame to a separate archive.
+
+```bash
+java -jar esc-cli.jar export-dump \
+  -s "2 hours ago" \
+  -e "now" \
+  -r /path/to/dump/root \
+  output.zip
+```
+
+**Options:**
+- `-s, --start-date DATE` - Start timestamp (default: `1hour`)
+- `-e, --end-date DATE` - End timestamp (default: `now`)
+- `-z, --time-zone ZONE` - Time zone (e.g., `America/Los_Angeles`, `PST`, `GMT-8:00`)
+- `-n, --server NAME` - Export specific server (multiple `-n` allowed)
+- `-d, --dry-run` - Preview export without writing files
+- `-q, --skip-details` - Skip profiling trees (exports only high-level info)
+- `-r, --dump-root PATH` - Root folder to gather data from
+
+**Date Formats:**
+
+<Tabs>
+  <Tab title="Relative">
+    ```bash
+    # Examples:
+    -s "5h30min"    # 5 hours 30 minutes ago
+    -s "1hour"      # 1 hour ago
+    -s "2day"       # 2 days ago
+    ```
+    
+    Format: `AmonthBweekCdayDhourEminute`
+  </Tab>
+  
+  <Tab title="Absolute">
+    ```bash
+    # Full timestamp
+    -s "2026-03-12 14:30"
+    
+    # Month and day (current year)
+    -s "03-12 14:30"
+    
+    # Time only (current date)
+    -s "14:30"
+    ```
+    
+    Format: `YYYY-MM-DD HH24:MI`
+  </Tab>
+  
+  <Tab title="Unix Timestamp">
+    ```bash
+    # Seconds since epoch
+    -s "1710252600"
+    
+    # Milliseconds since epoch
+    -s "1710252600000"
+    ```
+  </Tab>
+</Tabs>
+
+**Examples:**
+
+```bash
+# Export last hour of data
+java -jar esc-cli.jar export-dump output.zip
+
+# Export specific time range with dry-run
+java -jar esc-cli.jar export-dump \
+  -s "2026-03-12 10:00" \
+  -e "2026-03-12 12:00" \
+  -d \
+  output.zip
+
+# Export from specific servers only
+java -jar esc-cli.jar export-dump \
+  -n app-server-1 \
+  -n app-server-2 \
+  -s "1hour" \
+  output.zip
+
+# Export without trace/sql/xml details
+java -jar esc-cli.jar export-dump \
+  -q \
+  -s "30min" \
+  output.zip
+```
+
+---
+
+### download-dump
+
+Download profiler data from a remote server via SSH.
+
+```bash
+java -jar esc-cli.jar download-dump \
+  -rh production-server.example.com \
+  -u admin \
+  -p password123 \
+  -s "1hour" \
+  /local/output/folder
+```
+
+**Options:**
+- `-rh, --host HOST` - Remote host (required)
+- `-u, --user USER` - SSH username (required)
+- `-p, --password PASSWORD` - SSH password (prompted if omitted)
+- `-pd, --parallel DEGREE` - Parallel download degree (1-10, default: 1)
+- `-sh, --shell SHELL` - Init shell command (e.g., `sudo su - netcrk`)
+- `-dp, --download-protocol PROTOCOL` - Download protocol: `SFTP` or `SCP` (default: `SFTP`)
+- `-s, --start-date DATE` - Start timestamp
+- `-e, --end-date DATE` - End timestamp
+- `-z, --time-zone ZONE` - Time zone (uses server timezone if not set)
+- `-n, --server NAME` - Download from specific server(s)
+- `-d, --dry-run` - Preview without downloading
+- `-q, --skip-details` - Skip trace/sql/xml folders
+- `-r, --dump-root PATH` - Remote dump root (auto-detected if not set)
+
+**Examples:**
+
+```bash
+# Basic download with password prompt
+java -jar esc-cli.jar download-dump \
+  -rh 192.168.1.100 \
+  -u admin \
+  ./downloads
+
+# Parallel download with specific time range
+java -jar esc-cli.jar download-dump \
+  -rh prod-server \
+  -u deploy \
+  -p "secret" \
+  -pd 5 \
+  -s "2026-03-12 00:00" \
+  -e "2026-03-12 06:00" \
+  ./overnight-dump
+
+# Download using SCP with sudo
+java -jar esc-cli.jar download-dump \
+  -rh app-host \
+  -u jenkins \
+  -sh "sudo su - netcrk" \
+  -dp SCP \
+  ./remote-data
+
+# Dry-run to check size
+java -jar esc-cli.jar download-dump \
+  -rh prod-server \
+  -u admin \
+  -d \
+  -s "24hour" \
+  ./estimate
+```
+
+---
+
+### export-excel
+
+Export profiler calls to Excel format.
+
+```bash
+java -jar esc-cli.jar export-excel \
+  -s "1hour" \
+  -d 500 \
+  calls-report.xlsx
+```
+
+**Options:**
+- `-s, --start-date DATE` - Start timestamp
+- `-e, --end-date DATE` - End timestamp
+- `-z, --time-zone ZONE` - Time zone
+- `-n, --server NAME` - Export from specific server(s)
+- `-a, --aggregate` - Generate aggregate report instead of all calls
+- `-d, --min-duration MS` - Minimum call duration in milliseconds (default: 500)
+- `-md, --min-digits-in-id NUM` - Minimum digits to treat as ID (default: 4, set -1 to disable)
+- `-du, --disable-default-url-replace-patterns` - Disable default URL ID replacement
+- `-ur, --url-replace-pattern PATTERN` - Custom URL pattern for ID replacement
+- `-r, --dump-root PATH` - Root folder for data
+
+**URL Pattern Syntax:**
+- `*` - Matches everything except `/`
+- `**` - Matches everything including `/`
+- `$id$` - Matches and replaces with `$id$`
+
+**Examples:**
+
+```bash
+# Export all calls over 1 second
+java -jar esc-cli.jar export-excel \
+  -d 1000 \
+  slow-calls.xlsx
+
+# Aggregate report
+java -jar esc-cli.jar export-excel \
+  -a \
+  -s "24hour" \
+  daily-summary.xlsx
+
+# Custom URL ID replacement
+java -jar esc-cli.jar export-excel \
+  -ur '/api/users/$id$/profile' \
+  -ur '/api/orders/$id$/items' \
+  api-calls.xlsx
+
+# Export from specific server
+java -jar esc-cli.jar export-excel \
+  -n app-server-1 \
+  -s "2hour" \
+  server1-calls.xlsx
+```
+
+---
+
+### dump-calls
+
+Dump profiler calls to TSV (tab-separated values) format.
+
+```bash
+java -jar esc-cli.jar dump-calls \
+  -s "1hour" \
+  -d 100 \
+  calls.tsv
+```
+
+**Options:**
+- `-s, --start-date DATE` - Start timestamp (default: `1hour`)
+- `-e, --end-date DATE` - End timestamp (default: `now`)
+- `-z, --time-zone ZONE` - Time zone
+- `-n, --server NAME` - Dump from specific server(s)
+- `-d, --min-duration MS` - Minimum duration in milliseconds (default: 0)
+- `-D, --max-duration MS` - Maximum duration in milliseconds
+- `-m, --method-contains TEXT` - Filter by method name substring
+- `-p, --include-params` - Include call parameters in output
+- `-r, --dump-root PATH` - Root folder for data
+
+**Output to stdout:**
+```bash
+java -jar esc-cli.jar dump-calls - | head -n 100
+```
+
+**Examples:**
+
+```bash
+# Dump slow calls to file
+java -jar esc-cli.jar dump-calls \
+  -d 5000 \
+  slow-calls.tsv
+
+# Filter by method name
+java -jar esc-cli.jar dump-calls \
+  -m "UserService" \
+  -p \
+  user-service-calls.tsv
+
+# Calls in specific duration range
+java -jar esc-cli.jar dump-calls \
+  -d 100 \
+  -D 1000 \
+  medium-calls.tsv
+
+# Pipe to other tools
+java -jar esc-cli.jar dump-calls - | \
+  awk -F'\t' '{print $4}' | \
+  sort -n | \
+  tail -n 10
+```
+
+---
+
+### dump-trace
+
+Dump raw trace events to TSV format.
+
+```bash
+java -jar esc-cli.jar dump-trace \
+  -s "30min" \
+  trace.tsv
+```
+
+**Options:**
+- `-s, --start-date DATE` - Start timestamp (default: `1hour`)
+- `-e, --end-date DATE` - End timestamp (default: `now`)
+- `-z, --time-zone ZONE` - Time zone
+- `-n, --server NAME` - Dump from specific server(s)
+- `-c, --contains TEXT` - Filter events by tag/value substring
+- `-r, --dump-root PATH` - Root folder for data
+
+**Examples:**
+
+```bash
+# Dump all trace events
+java -jar esc-cli.jar dump-trace trace-events.tsv
+
+# Filter trace events
+java -jar esc-cli.jar dump-trace \
+  -c "SQLException" \
+  errors.tsv
+
+# Output to stdout
+java -jar esc-cli.jar dump-trace - | grep ERROR
+```
+
+---
+
+### export-inflight-calls
+
+Export in-flight (incomplete) calls to Excel.
+
+```bash
+java -jar esc-cli.jar export-inflight-calls \
+  -s "2026-03-12 14:00" \
+  -n app-server-1 \
+  inflight.xlsx
+```
+
+**Options:**
+- `-s, --start-date DATE` - Start timestamp (required)
+- `-z, --time-zone ZONE` - Time zone
+- `-n, --server NAME` - Server name (required)
+- `-r, --dump-root PATH` - Root folder for data
+
+**Use Case:**
+
+This command is useful for analyzing calls that were running when a server crashed or was restarted. It scans trace files from the specified timestamp until the end of the dump or server reboot.
+
+**Example:**
+
+```bash
+# Find in-flight calls at crash time
+java -jar esc-cli.jar export-inflight-calls \
+  -s "2026-03-12 14:32" \
+  -n worker-3 \
+  -z "America/New_York" \
+  crash-analysis.xlsx
+```
+
+---
+
+### repair-profiler
+
+Repair static content of anonymized profiler HTML pages.
+
+```bash
+java -jar esc-cli.jar repair-profiler \
+  broken-page.html \
+  repaired-page.html
+```
+
+**Options:**
+- `input_file` - Input HTML file (required)
+- `output_file` - Output HTML file (default: `repaired-profiler.html`)
+
+**Note:** This tool only repairs static HTML content. It cannot recover corrupted tree data.
+
+**Example:**
+
+```bash
+java -jar esc-cli.jar repair-profiler corrupt.html fixed.html
+```
+
+---
+
+## Common Patterns
+
+### Analyzing Slow Requests
+
+```bash
+# Export calls slower than 5 seconds in the last hour
+java -jar esc-cli.jar dump-calls \
+  -s "1hour" \
+  -d 5000 \
+  slow-requests.tsv
+
+# Convert to Excel for analysis
+java -jar esc-cli.jar export-excel \
+  -s "1hour" \
+  -d 5000 \
+  slow-requests.xlsx
+```
+
+### Downloading Production Data
+
+```bash
+# Download last 24 hours from production
+java -jar esc-cli.jar download-dump \
+  -rh prod-db-01.example.com \
+  -u profiler \
+  -pd 8 \
+  -s "24hour" \
+  -q \
+  ./prod-dump-$(date +%Y%m%d)
+```
+
+### Investigating Specific Time Window
+
+```bash
+# Export exact incident window
+java -jar esc-cli.jar export-dump \
+  -s "2026-03-12 14:30" \
+  -e "2026-03-12 14:45" \
+  -z "UTC" \
+  incident-20260312.zip
+```
+
+## Troubleshooting
+
+<Accordion title="Error: No dump path found">
+  The `--dump-root` path is incorrect or the dump directory structure is invalid.
+  
+  **Solution:** Verify the path points to a directory containing year/month/day/timestamp folders with dump data.
+  
+  ```bash
+  # Check dump structure
+  ls -R /path/to/dump/root | head -20
+  
+  # Should see: YYYY/MM/DD/timestamp/calls
+  ```
+</Accordion>
+
+<Accordion title="Error: No files found by the specified arguments">
+  No data exists for the specified time range or server.
+  
+  **Solution:**
+  - Use `list-servers` to check available servers
+  - Verify the time range with `--dry-run`
+  - Check timezone settings
+</Accordion>
+
+<Accordion title="Download fails with SSH timeout">
+  Network connectivity issues or SSH configuration problems.
+  
+  **Solution:**
+  - Test SSH connection manually: `ssh user@host`
+  - Reduce parallel degree: `-pd 1`
+  - Check firewall settings
+</Accordion>
+
+<Accordion title="Out of memory when exporting large dumps">
+  The export is too large for available heap memory.
+  
+  **Solution:**
+  - Increase JVM heap: `java -Xmx4g -jar esc-cli.jar ...`
+  - Use smaller time windows
+  - Use `--skip-details` to reduce size
+</Accordion>
+
+## See Also
+
+- [Diagnostic Tools](/operations/diagnostic-tools) - Go-based diagtools CLI
+- [Troubleshooting](/operations/troubleshooting) - Common issues and solutions
+- [Monitoring](/operations/monitoring) - Observability best practices

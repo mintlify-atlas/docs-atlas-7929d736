@@ -1,0 +1,508 @@
+---
+title: Diagnostic Tools
+description: Go-based diagtools CLI for heap dumps, thread dumps, and diagnostics
+---
+
+## Overview
+
+The `diagtools` is a Go-based CLI tool for collecting Java heap dumps, thread dumps, CPU usage data, and managing diagnostic files. It runs alongside the profiler agent to provide deep diagnostic capabilities.
+
+## Installation
+
+The diagtools binary is typically deployed as a sidecar container in Kubernetes environments or installed directly on the host:
+
+```bash
+# Run diagtools
+./diagtools COMMAND [FLAGS]
+```
+
+## Commands
+
+### heap
+
+Collect heap dump for a Java process.
+
+```bash
+diagtools heap [zip] [upload]
+```
+
+**Flags:**
+- `zip` - Compress the heap dump (optional)
+- `upload` - Upload to collector service (requires `zip`, optional)
+
+**How it works:**
+1. Runs `jmap -dump:format=b,file=<path> <pid>` to collect heap dump
+2. Optionally compresses with configurable compression level
+3. Optionally uploads to diagnostic collector at `http://localhost:8081/diagnostic/{namespace}/*/*/*/*/*/*/{podName}/{dumpName}`
+
+**Compression Levels** (via `NC_HEAP_DUMP_COMPRESSION_LEVEL`):
+- `0` - No compression
+- `1` - Best speed
+- `9` - Best compression
+- `-1` - Default compression (default)
+
+<Tabs>
+  <Tab title="Basic Usage">
+    ```bash
+    # Collect heap dump without compression
+    diagtools heap
+    
+    # Collect and compress
+    diagtools heap zip
+    
+    # Collect, compress, and upload
+    diagtools heap zip upload
+    ```
+  </Tab>
+  
+  <Tab title="With Environment Variables">
+    ```bash
+    # Set compression level to best compression
+    export NC_HEAP_DUMP_COMPRESSION_LEVEL=9
+    diagtools heap zip upload
+    
+    # Use fastest compression
+    export NC_HEAP_DUMP_COMPRESSION_LEVEL=1
+    diagtools heap zip
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+### dump
+
+Collect Java thread dump and CPU usage.
+
+```bash
+diagtools dump
+```
+
+**What it collects:**
+- Thread dump via `jstack -l <pid>`
+- CPU usage via `top -Hb -p<pid> -oTIME+ -d60 -n1`
+
+**Control variables:**
+- `NC_DIAGNOSTIC_THREADDUMP_ENABLED` - Enable/disable thread dump collection (default: enabled)
+- `NC_DIAGNOSTIC_TOP_ENABLED` - Enable/disable CPU usage collection (default: enabled)
+
+**Example:**
+
+```bash
+# Collect both thread dump and CPU usage
+diagtools dump
+
+# Disable CPU collection
+export NC_DIAGNOSTIC_TOP_ENABLED=false
+diagtools dump
+```
+
+---
+
+### scan
+
+Find, compress, and upload diagnostic files matching patterns.
+
+```bash
+diagtools scan <pattern1> <pattern2> ...
+```
+
+**How it works:**
+1. Finds files matching the specified glob patterns
+2. Compresses `.hprof` files if not already compressed
+3. Uploads `.hprof.zip` and other files to collector service
+
+**Examples:**
+
+<Tabs>
+  <Tab title="Heap Dumps">
+    ```bash
+    # Scan for heap dumps in diagnostic folder
+    diagtools scan /tmp/diagnostic/*.hprof*
+    
+    # Scan multiple locations
+    diagtools scan \
+      "${NC_DIAGNOSTIC_LOG_FOLDER}"/*.hprof* \
+      /var/dumps/*.hprof
+    ```
+  </Tab>
+  
+  <Tab title="Core Dumps">
+    ```bash
+    # Scan for core dumps and JVM error files
+    diagtools scan ./core* ./hs_err*
+    
+    # Combined scan
+    diagtools scan \
+      /tmp/diagnostic/*.hprof* \
+      ./core* \
+      ./hs_err*.log
+    ```
+  </Tab>
+  
+  <Tab title="Custom Patterns">
+    ```bash
+    # Scan specific date range
+    diagtools scan /tmp/diagnostic/dump-2026-03-*.hprof
+    
+    # Multiple file types
+    diagtools scan \
+      /var/log/gc*.log \
+      /tmp/*.hprof* \
+      /opt/app/crashes/*
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+### schedule
+
+Run dump collection, scanning, and log cleanup on a schedule.
+
+```bash
+diagtools schedule
+```
+
+**What it does:**
+- Collects dumps periodically (like `dump` command)
+- Scans for diagnostic files (like `scan` command)
+- Cleans up old logs from `NC_DIAGNOSTIC_LOGS_FOLDER`
+
+**Scheduling intervals:**
+- `DIAGNOSTIC_DUMP_INTERVAL` - Dump collection interval (default: `1m`)
+- `DIAGNOSTIC_SCAN_INTERVAL` - File scan interval (default: `3m`)
+- `KEEP_LOGS_INTERVAL` - Log retention period (default: `2` days)
+
+**Example:**
+
+```bash
+# Run with custom intervals
+export DIAGNOSTIC_DUMP_INTERVAL=2m
+export DIAGNOSTIC_SCAN_INTERVAL=5m
+export KEEP_LOGS_INTERVAL=7  # 7 days
+diagtools schedule
+```
+
+**Typical Kubernetes deployment:**
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-with-diagnostics
+spec:
+  containers:
+  - name: app
+    image: my-java-app:latest
+    # ... app configuration
+    
+  - name: diagtools
+    image: diagtools:latest
+    command: ["/diagtools", "schedule"]
+    env:
+    - name: DIAGNOSTIC_DUMP_INTERVAL
+      value: "5m"
+    - name: DIAGNOSTIC_SCAN_INTERVAL
+      value: "10m"
+    - name: KEEP_LOGS_INTERVAL
+      value: "3"
+    volumeMounts:
+    - name: diagnostic-data
+      mountPath: /tmp/diagnostic
+```
+
+---
+
+### zkConfig
+
+Update nc-diagnostic-agent settings via ZooKeeper.
+
+```bash
+diagtools zkConfig <properties-file> <property1> <property2> ...
+```
+
+**Prerequisites:**
+- `ZOOKEEPER_ENABLED=true`
+- `ZOOKEEPER_ADDRESS` must be set
+
+**Example:**
+
+```bash
+# Update ESC configuration via ZooKeeper
+diagtools zkConfig \
+  "${NC_DIAGNOSTIC_FOLDER}/zkproperties" \
+  esc.config \
+  NC_DIAGNOSTIC_ESC_ENABLED
+```
+
+---
+
+### consulCfg
+
+Update nc-diagnostic-agent settings via Consul.
+
+```bash
+diagtools consulCfg <properties-file> <property1> <property2> ...
+```
+
+**Prerequisites:**
+- `CONSUL_ENABLED=true` OR `CONSUL_URL` is set
+
+**Example:**
+
+```bash
+# Update configuration via Consul
+diagtools consulCfg \
+  "${NC_DIAGNOSTIC_FOLDER}/properties" \
+  esc.config \
+  NC_DIAGNOSTIC_ESC_ENABLED
+```
+
+---
+
+### serverCfg
+
+Update nc-diagnostic-agent settings via Config Server.
+
+```bash
+diagtools serverCfg <properties-file> <property1> <property2> ...
+```
+
+**Prerequisites:**
+- `CONFIG_SERVER` must be set with valid URL
+
+**Example:**
+
+```bash
+# Update configuration via Config Server
+diagtools serverCfg \
+  "${NC_DIAGNOSTIC_FOLDER}/properties" \
+  esc.config \
+  NC_DIAGNOSTIC_ESC_ENABLED
+```
+
+---
+
+## Environment Variables
+
+### Core Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NC_DIAGNOSTIC_FOLDER` | `/tmp/diagnostic` | Diagnostic data folder |
+| `NC_DIAGNOSTIC_LOGS_FOLDER` | `/tmp/diagnostic` | Logs folder path |
+| `PROFILER_FOLDER` | `/app/ncdiag` | Profiler installation folder |
+
+### Collection Control
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NC_DIAGNOSTIC_THREADDUMP_ENABLED` | `true` | Enable thread dump collection |
+| `NC_DIAGNOSTIC_TOP_ENABLED` | `true` | Enable CPU usage collection |
+| `NC_DIAGNOSTIC_GC_ENABLED` | `true` | Enable GC log collection |
+| `DIAGNOSTIC_CENTER_DUMPS_ENABLED` | `true` | Enable heap dump upload |
+| `NC_DIAGNOSTIC_JSTACK_LONG_LISTENING_ENABLED` | `false` | Enable jstack `-l` flag (performance impact) |
+
+### Scheduling
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DIAGNOSTIC_DUMP_INTERVAL` | `1m` | Dump collection interval |
+| `DIAGNOSTIC_SCAN_INTERVAL` | `1m` | File scan interval |
+| `DIAGNOSTIC_UPLOAD_TIMEOUT` | `5m` | HTTP upload timeout |
+| `KEEP_LOGS_INTERVAL` | `2` | Log retention in days |
+
+### Logging
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOG_FILE_SIZE` | `1` | Log file size in MB |
+| `LOG_FILE_BACKUPS` | `5` | Number of log file backups |
+| `LOG_TO_CONSOLE` | `false` | Send logs to console |
+| `LOG_LEVEL` | `info` | Application log level |
+| `ESC_LOG_LEVEL` | - | ESC-specific log level (overrides `LOG_LEVEL`) |
+
+### Network & Services
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NC_DIAGNOSTIC_AGENT_SERVICE` | `nc-diagnostic-agent` | Diagnostic agent service name |
+| `TLS_ENABLED` | `false` | Enable HTTPS for uploads |
+| `ZOOKEEPER_ENABLED` | `false` | Enable ZooKeeper integration |
+| `ZOOKEEPER_ADDRESS` | - | ZooKeeper connection string |
+| `CONSUL_ENABLED` | `false` | Enable Consul integration |
+| `CONSUL_URL` | - | Consul server URL |
+| `CONFIG_SERVER` | - | Config Server URL |
+| `IDP_URL` | `http://identity-provider:8080` | Identity provider URL |
+
+### Kubernetes
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLOUD_NAMESPACE` | - | Kubernetes namespace |
+| `NAMESPACE` | - | Alternative namespace variable |
+| `MICROSERVICE_NAME` | - | Microservice name |
+| `SERVICE_NAME` | - | Service name |
+
+### Compression
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NC_HEAP_DUMP_COMPRESSION_LEVEL` | `-1` | Heap dump compression (0=none, 1=fast, 9=best, -1=default) |
+
+### Log Formats
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ESC_LOG_FORMAT` | - | Custom log format for Java logging service |
+| `LOGBACK_CLOUD_AGENT_LOG_FORMAT` | - | Custom log format for Logback service |
+
+---
+
+## Common Workflows
+
+### Manual Heap Dump Collection
+
+```bash
+# 1. Collect heap dump
+diagtools heap zip
+
+# 2. Find the dump file
+ls -lh /tmp/diagnostic/*.hprof.zip
+
+# 3. Copy for analysis
+cp /tmp/diagnostic/heap-*.hprof.zip /analysis/
+```
+
+### Scheduled Diagnostics in Kubernetes
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  template:
+    spec:
+      containers:
+      - name: app
+        image: my-app:latest
+        
+      - name: diagtools
+        image: diagtools:latest
+        command: ["/diagtools", "schedule"]
+        env:
+        - name: DIAGNOSTIC_DUMP_INTERVAL
+          value: "10m"
+        - name: DIAGNOSTIC_SCAN_INTERVAL
+          value: "15m"
+        - name: NC_DIAGNOSTIC_THREADDUMP_ENABLED
+          value: "true"
+        - name: NC_DIAGNOSTIC_TOP_ENABLED
+          value: "true"
+        - name: KEEP_LOGS_INTERVAL
+          value: "7"
+        - name: LOG_TO_CONSOLE
+          value: "true"
+        volumeMounts:
+        - name: diagnostic-volume
+          mountPath: /tmp/diagnostic
+      
+      volumes:
+      - name: diagnostic-volume
+        emptyDir:
+          sizeLimit: 10Gi
+```
+
+### On-Demand Diagnostics
+
+```bash
+# Collect everything right now
+diagtools dump
+diagtools heap zip
+diagtools scan /tmp/diagnostic/*.hprof* ./core* ./hs_err*
+
+# Check what was collected
+ls -lh /tmp/diagnostic/
+```
+
+### Uploading Historical Dumps
+
+```bash
+# Scan and upload old dump files
+diagtools scan /archive/dumps/*.hprof*
+
+# Scan multiple locations
+diagtools scan \
+  /archive/2026-03-*/*.hprof* \
+  /var/dumps/critical/*.hprof
+```
+
+---
+
+## Troubleshooting
+
+<Accordion title="Error: Can't handle dump request, problem with lock file">
+  Another diagtools process is already running.
+  
+  **Solution:**
+  - Wait for the current operation to complete
+  - Check for stuck processes: `ps aux | grep diagtools`
+  - Remove stale lock file if confirmed no process is running
+</Accordion>
+
+<Accordion title="jmap command fails with 'Unable to attach'">
+  Insufficient permissions to attach to the Java process.
+  
+  **Solution:**
+  - Run diagtools as the same user as the Java process
+  - Check `/proc/sys/kernel/yama/ptrace_scope` (should be 0 or 1)
+  - Use `--cap-add=SYS_PTRACE` in Docker/Kubernetes
+</Accordion>
+
+<Accordion title="Upload fails with connection refused">
+  Cannot connect to diagnostic collector service.
+  
+  **Solution:**
+  - Verify `NC_DIAGNOSTIC_AGENT_SERVICE` is correct
+  - Check if TLS is enabled: set `TLS_ENABLED=true` if using HTTPS
+  - Test connectivity: `curl http://nc-diagnostic-agent:8080/health`
+</Accordion>
+
+<Accordion title="Out of disk space during heap dump">
+  Not enough space in `/tmp/diagnostic` for heap dump.
+  
+  **Solution:**
+  - Clean old dumps: `rm /tmp/diagnostic/*.hprof.zip`
+  - Change location: `export NC_DIAGNOSTIC_FOLDER=/larger/partition`
+  - Increase volume size in Kubernetes
+</Accordion>
+
+<Accordion title="Schedule command not collecting dumps">
+  Collection is disabled via environment variables.
+  
+  **Solution:**
+  - Check `NC_DIAGNOSTIC_THREADDUMP_ENABLED=true`
+  - Check `NC_DIAGNOSTIC_TOP_ENABLED=true`
+  - Verify intervals are valid: `DIAGNOSTIC_DUMP_INTERVAL=5m`
+  - Check logs: `export LOG_TO_CONSOLE=true`
+</Accordion>
+
+## Profiling Arguments
+
+**CPU and Memory Profiling** (for diagtools development):
+
+```bash
+# CPU profiling
+diagtools --cpu_prof=/tmp/cpu.prof heap zip
+
+# Memory profiling
+diagtools --mem_prof=/tmp/mem.prof scan /tmp/*.hprof*
+```
+
+## See Also
+
+- [CLI Tools](/operations/cli-tools) - Java CLI tools for dump management
+- [Monitoring](/operations/monitoring) - Observability practices
+- [Troubleshooting](/operations/troubleshooting) - Common issues and solutions

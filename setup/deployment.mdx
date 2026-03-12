@@ -1,0 +1,759 @@
+---
+title: 'Production Deployment'
+description: 'Best practices for deploying the Qubership Profiler Agent in production environments'
+icon: 'rocket'
+---
+
+This guide covers best practices, performance considerations, and deployment strategies for running the Qubership Profiler Agent in production environments.
+
+## Pre-Deployment Checklist
+
+Before deploying to production, ensure you have:
+
+<Check>Tested the agent in a staging environment with production-like load</Check>
+<Check>Configured appropriate profiling rules to minimize overhead</Check>
+<Check>Set up proper log retention policies</Check>
+<Check>Configured remote dump collection if using centralized analysis</Check>
+<Check>Allocated sufficient disk space for dump files</Check>
+<Check>Verified that the agent version is compatible with your JDK</Check>
+<Check>Prepared rollback procedures</Check>
+
+## Performance Impact
+
+### Expected Overhead
+
+The agent's performance impact depends on your configuration:
+
+<CardGroup cols={2}>
+  <Card title="Low Impact" icon="gauge-simple-low">
+    **1-3% overhead**
+    
+    - Minimal profiling rules
+    - High method size thresholds
+    - Sampling-based collection
+  </Card>
+  
+  <Card title="Medium Impact" icon="gauge-simple-med">
+    **3-8% overhead**
+    
+    - Moderate profiling scope
+    - Standard method filters
+    - Selective instrumentation
+  </Card>
+  
+  <Card title="High Impact" icon="gauge-simple-high">
+    **8-15% overhead**
+    
+    - Extensive profiling coverage
+    - Low method size thresholds
+    - Detailed parameter capture
+  </Card>
+  
+  <Card title="Debug Mode" icon="bug">
+    **15%+ overhead**
+    
+    - Profile all methods
+    - Class verification enabled
+    - Store transformed classes
+  </Card>
+</CardGroup>
+
+### Optimization Strategies
+
+#### 1. Use Method Size Filters
+
+Profile only substantial methods to reduce overhead:
+
+```xml
+<rule>
+    <class>com.example.myapp.**</class>
+    <minimum-method-size>50</minimum-method-size>
+    <minimum-method-lines>10</minimum-method-lines>
+</rule>
+```
+
+#### 2. Exclude Framework Code
+
+Avoid profiling framework internals:
+
+```xml
+<rule>
+    <class>org.springframework.**</class>
+    <do-not-profile/>
+</rule>
+<rule>
+    <class>org.hibernate.**</class>
+    <do-not-profile/>
+</rule>
+<rule>
+    <class>com.fasterxml.jackson.**</class>
+    <do-not-profile/>
+</rule>
+```
+
+#### 3. Exclude Trivial Methods
+
+```xml
+<rule>
+    <class>com.example.**</class>
+    <exclude-method>get*</exclude-method>
+    <exclude-method>set*</exclude-method>
+    <exclude-method>is*</exclude-method>
+    <exclude-method>toString</exclude-method>
+    <exclude-method>hashCode</exclude-method>
+    <exclude-method>equals</exclude-method>
+</rule>
+```
+
+#### 4. Use Conditional Profiling
+
+Enable detailed profiling only when needed:
+
+```xml
+<!-- Detailed profiling enabled only with -Dprofiler.detailed=true -->
+<rule if="profiler.detailed">
+    <class>com.example.critical.**</class>
+    <minimum-method-size>1</minimum-method-size>
+</rule>
+
+<!-- Standard profiling otherwise -->
+<rule unless="profiler.detailed">
+    <class>com.example.critical.**</class>
+    <minimum-method-size>100</minimum-method-size>
+</rule>
+```
+
+## Disk Space Management
+
+### Dump File Size Estimation
+
+Estimate disk space requirements:
+
+- **Low traffic**: 100-500 MB per day
+- **Medium traffic**: 500 MB - 2 GB per day
+- **High traffic**: 2-10 GB per day
+- **Very high traffic**: 10+ GB per day
+
+### Retention Configuration
+
+Configure appropriate retention based on available disk space:
+
+```xml
+<!-- For systems with limited disk space (< 50 GB) -->
+<log-retention max-age="3 days" max-size="2 Gb"/>
+
+<!-- For systems with moderate disk space (50-200 GB) -->
+<log-retention max-age="7 days" max-size="10 Gb"/>
+
+<!-- For systems with ample disk space (> 200 GB) -->
+<log-retention max-age="30 days" max-size="50 Gb"/>
+```
+
+### Monitoring Disk Usage
+
+Set up monitoring for the dump directory:
+
+```bash
+# Check dump directory size
+du -sh /var/log/profiler/dumps
+
+# Monitor disk usage with cron
+*/30 * * * * df -h /var/log/profiler | tail -1 | awk '{print $5}' | sed 's/%//' | awk '{if ($1 > 85) print "Warning: Disk usage at " $1 "%"}'
+```
+
+## Resource Allocation
+
+### Memory Requirements
+
+The agent itself requires minimal memory (typically 50-200 MB), but ensure adequate heap for your application:
+
+```bash
+# Increase heap if needed
+-Xmx4g -Xms2g
+
+# Monitor GC with agent enabled
+-XX:+PrintGCDetails -XX:+PrintGCDateStamps
+```
+
+### CPU Considerations
+
+The agent adds some CPU overhead during:
+- Class loading and transformation (one-time per class)
+- Method entry/exit instrumentation (runtime)
+- Dump file writing (periodic)
+
+No additional CPU allocation is typically needed.
+
+## Deployment Strategies
+
+### Gradual Rollout
+
+Deploy the agent incrementally to minimize risk:
+
+<Steps>
+  <Step title="Pilot Instance">
+    Deploy to 1-2 instances in production
+    - Monitor performance metrics
+    - Verify dump collection
+    - Check for errors or issues
+  </Step>
+  
+  <Step title="Small Scale (10-25%)">
+    Expand to 10-25% of instances
+    - Compare metrics with non-profiled instances
+    - Validate under typical load
+    - Collect feedback from operations team
+  </Step>
+  
+  <Step title="Half Deployment (50%)">
+    Deploy to half the fleet
+    - Test during peak traffic
+    - Monitor system stability
+    - Ensure dump retention working correctly
+  </Step>
+  
+  <Step title="Full Deployment (100%)">
+    Complete rollout to all instances
+    - Continue monitoring
+    - Document any configuration adjustments
+    - Update runbooks with profiler information
+  </Step>
+</Steps>
+
+### Canary Deployment with Kubernetes
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-with-profiler
+spec:
+  replicas: 2  # Start with 2 instances
+  selector:
+    matchLabels:
+      app: myapp
+      profiler: enabled
+  template:
+    metadata:
+      labels:
+        app: myapp
+        profiler: enabled
+    spec:
+      containers:
+      - name: app
+        image: myapp:latest
+        env:
+        - name: JAVA_OPTS
+          value: >
+            -javaagent:/opt/profiler/agent.jar
+            -Dprofiler.home=/opt/profiler
+            -Dprofiler.dump=/data/dumps
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-without-profiler
+spec:
+  replicas: 8  # Majority without profiler initially
+  selector:
+    matchLabels:
+      app: myapp
+      profiler: disabled
+  template:
+    metadata:
+      labels:
+        app: myapp
+        profiler: disabled
+    spec:
+      containers:
+      - name: app
+        image: myapp:latest
+```
+
+Gradually increase `myapp-with-profiler` replicas while decreasing `myapp-without-profiler`.
+
+### Blue-Green Deployment
+
+Maintain two environments for easy rollback:
+
+```yaml
+# Green environment (with profiler)
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-green
+spec:
+  selector:
+    app: myapp
+    version: green
+    profiler: enabled
+---
+# Blue environment (without profiler)
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-blue
+spec:
+  selector:
+    app: myapp
+    version: blue
+    profiler: disabled
+```
+
+Switch traffic between environments using ingress rules.
+
+## High Availability Considerations
+
+### Dump Collection
+
+#### Local Storage with Volume Mounts
+
+```yaml
+volumeMounts:
+- name: dumps
+  mountPath: /data/dumps
+
+volumes:
+- name: dumps
+  persistentVolumeClaim:
+    claimName: profiler-dumps
+```
+
+#### Remote Collection
+
+Prefer remote collection for distributed systems:
+
+```yaml
+env:
+- name: REMOTE_DUMP_HOST
+  value: "profiler-collector.internal"
+- name: REMOTE_DUMP_PORT_PLAIN
+  value: "9090"
+```
+
+### Centralized Collector Deployment
+
+Deploy a centralized collector service:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: profiler-collector
+spec:
+  replicas: 2  # For HA
+  selector:
+    matchLabels:
+      app: profiler-collector
+  template:
+    spec:
+      containers:
+      - name: collector
+        image: qubership/profiler-collector:latest
+        ports:
+        - containerPort: 9090
+          name: plain
+        - containerPort: 9091
+          name: ssl
+        volumeMounts:
+        - name: storage
+          mountPath: /data/dumps
+      volumes:
+      - name: storage
+        persistentVolumeClaim:
+          claimName: collector-storage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: profiler-collector
+spec:
+  type: ClusterIP
+  selector:
+    app: profiler-collector
+  ports:
+  - port: 9090
+    targetPort: 9090
+    name: plain
+  - port: 9091
+    targetPort: 9091
+    name: ssl
+```
+
+## Security Considerations
+
+### File Permissions
+
+Ensure proper permissions on agent files:
+
+```bash
+# Agent JAR should be readable by application user
+chmod 644 /opt/profiler/qubership-profiler-agent.jar
+chown root:root /opt/profiler/qubership-profiler-agent.jar
+
+# Dump directory should be writable by application
+chmod 755 /var/log/profiler/dumps
+chown appuser:appgroup /var/log/profiler/dumps
+
+# Configuration should be read-only
+chmod 644 /opt/profiler/config/_config.xml
+chown root:root /opt/profiler/config/_config.xml
+```
+
+### Sensitive Data Protection
+
+Exclude sensitive parameters from profiling data:
+
+```xml
+<call-export>
+    <exclude-params>
+        <exclude-param>password</exclude-param>
+        <exclude-param>token</exclude-param>
+        <exclude-param>secret</exclude-param>
+        <exclude-param>apiKey</exclude-param>
+        <exclude-param>authorization</exclude-param>
+        <exclude-param>creditCard</exclude-param>
+    </exclude-params>
+</call-export>
+```
+
+### Network Security
+
+Secure remote dump collection:
+
+```yaml
+env:
+# Use SSL for remote collection
+- name: REMOTE_DUMP_HOST
+  value: "profiler-collector.internal"
+- name: REMOTE_DUMP_PORT_SSL
+  value: "9091"
+# Don't set REMOTE_DUMP_PORT_PLAIN
+```
+
+### Container Security
+
+Run containers with minimal privileges:
+
+```yaml
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+    - ALL
+```
+
+Mount only necessary directories as writable:
+
+```yaml
+volumeMounts:
+- name: dumps
+  mountPath: /data/dumps
+  readOnly: false
+- name: profiler
+  mountPath: /opt/profiler
+  readOnly: true
+```
+
+## Monitoring and Alerting
+
+### Key Metrics to Monitor
+
+<AccordionGroup>
+  <Accordion title="Application Metrics">
+    - Response time (p50, p95, p99)
+    - Throughput (requests per second)
+    - Error rate
+    - CPU usage
+    - Memory usage
+    - Garbage collection frequency and duration
+  </Accordion>
+  
+  <Accordion title="Profiler Metrics">
+    - Dump file size and count
+    - Disk space usage in dump directory
+    - Number of profiled classes
+    - Number of instrumented methods
+    - Dump writing frequency
+  </Accordion>
+  
+  <Accordion title="System Metrics">
+    - Available disk space
+    - I/O wait time
+    - Network throughput (for remote collection)
+    - File descriptor usage
+  </Accordion>
+</AccordionGroup>
+
+### Sample Prometheus Alerts
+
+```yaml
+groups:
+- name: profiler_alerts
+  rules:
+  - alert: ProfilerDiskSpaceHigh
+    expr: (node_filesystem_avail_bytes{mountpoint="/var/log/profiler"} / node_filesystem_size_bytes{mountpoint="/var/log/profiler"}) < 0.15
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Profiler dump directory low on space"
+      description: "Profiler dump directory has less than 15% free space"
+  
+  - alert: ApplicationPerformanceDegraded
+    expr: (avg_over_time(http_request_duration_seconds{quantile="0.95"}[5m]) / avg_over_time(http_request_duration_seconds{quantile="0.95"}[1d] offset 1d)) > 1.5
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Application p95 latency increased significantly"
+      description: "P95 latency is 50% higher than yesterday's average"
+```
+
+## Troubleshooting Production Issues
+
+### High CPU Usage
+
+<Steps>
+  <Step title="Check profiling scope">
+    Ensure you're not profiling too many methods:
+    
+    ```bash
+    # Check agent logs for number of instrumented classes
+    grep "instrumented" /var/log/application.log
+    ```
+  </Step>
+  
+  <Step title="Increase method size threshold">
+    ```xml
+    <minimum-method-size>100</minimum-method-size>
+    ```
+  </Step>
+  
+  <Step title="Exclude hot paths">
+    Identify and exclude frequently-called methods that aren't critical for profiling
+  </Step>
+</Steps>
+
+### High Memory Usage
+
+<Steps>
+  <Step title="Check dump retention">
+    Ensure old dumps are being cleaned up:
+    
+    ```bash
+    ls -lht /var/log/profiler/dumps | head -20
+    ```
+  </Step>
+  
+  <Step title="Verify retention settings">
+    ```xml
+    <log-retention max-age="7 days" max-size="5 Gb"/>
+    ```
+  </Step>
+  
+  <Step title="Check for memory leaks">
+    Monitor heap usage and GC logs
+  </Step>
+</Steps>
+
+### Dump Files Not Generated
+
+<AccordionGroup>
+  <Accordion title="Check dump directory permissions">
+    ```bash
+    ls -ld /var/log/profiler/dumps
+    # Should be writable by application user
+    ```
+  </Accordion>
+  
+  <Accordion title="Verify profiler.dump property">
+    ```bash
+    ps aux | grep profiler.dump
+    # Should show correct dump path
+    ```
+  </Accordion>
+  
+  <Accordion title="Check for profiling rules">
+    Ensure you haven't excluded all application classes:
+    
+    ```xml
+    <!-- Make sure this doesn't match all your code -->
+    <rule>
+        <class>com.netcracker.profiler.**</class>
+        <do-not-profile/>
+    </rule>
+    ```
+  </Accordion>
+  
+  <Accordion title="Review application logs">
+    ```bash
+    grep -i profiler /var/log/application.log | tail -50
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Remote Collection Failures
+
+<Steps>
+  <Step title="Verify network connectivity">
+    ```bash
+    nc -zv profiler-collector.internal 9090
+    ```
+  </Step>
+  
+  <Step title="Check collector service status">
+    ```bash
+    kubectl get pods -l app=profiler-collector
+    kubectl logs -l app=profiler-collector --tail=100
+    ```
+  </Step>
+  
+  <Step title="Verify environment variables">
+    ```bash
+    env | grep REMOTE_DUMP
+    ```
+  </Step>
+  
+  <Step title="Test with telnet">
+    ```bash
+    telnet profiler-collector.internal 9090
+    ```
+  </Step>
+</Steps>
+
+## Rollback Procedures
+
+### Emergency Rollback
+
+To quickly disable the agent without redeployment:
+
+<Steps>
+  <Step title="Remove agent parameter">
+    Modify startup scripts to comment out `-javaagent` parameter
+  </Step>
+  
+  <Step title="Restart application">
+    ```bash
+    systemctl restart myapp
+    # or
+    kubectl rollout restart deployment/myapp
+    ```
+  </Step>
+  
+  <Step title="Verify agent is disabled">
+    ```bash
+    ps aux | grep javaagent
+    # Should not show profiler agent
+    ```
+  </Step>
+</Steps>
+
+### Kubernetes Rollback
+
+```bash
+# Rollback to previous deployment
+kubectl rollout undo deployment/myapp
+
+# Rollback to specific revision
+kubectl rollout history deployment/myapp
+kubectl rollout undo deployment/myapp --to-revision=3
+
+# Monitor rollback progress
+kubectl rollout status deployment/myapp
+```
+
+## Production Configuration Template
+
+Here's a recommended production configuration:
+
+```xml _config.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<profiler-configuration>
+    <!-- Retain dumps for 14 days or up to 20 GB -->
+    <log-retention max-age="14 days" max-size="20 Gb"/>
+    
+    <!-- Define tracked parameters -->
+    <parameters>
+        <parameter name="http.url" index="true" list="false" order="100"/>
+        <parameter name="http.method" index="true" list="false" order="110"/>
+        <parameter name="http.status" index="true" list="false" order="120"/>
+        <parameter name="error.message" index="true" list="false" order="500"/>
+        <parameter name="error.stacktrace" index="false" list="false" order="510"/>
+    </parameters>
+    
+    <!-- Enable required framework plugins -->
+    <enhancer>spring</enhancer>
+    <enhancer>jdbc</enhancer>
+    <enhancer>http</enhancer>
+    
+    <!-- Profiling rules -->
+    <ruleset>
+        <!-- Exclude profiler itself -->
+        <rule>
+            <class>com.netcracker.profiler.**</class>
+            <do-not-profile/>
+        </rule>
+        
+        <!-- Exclude common frameworks -->
+        <rule>
+            <class>org.springframework.**</class>
+            <do-not-profile/>
+        </rule>
+        <rule>
+            <class>org.hibernate.**</class>
+            <do-not-profile/>
+        </rule>
+        <rule>
+            <class>com.fasterxml.jackson.**</class>
+            <do-not-profile/>
+        </rule>
+        
+        <!-- Profile application code selectively -->
+        <rule>
+            <class>com.example.myapp.**</class>
+            <exclude-method>get*</exclude-method>
+            <exclude-method>set*</exclude-method>
+            <exclude-method>is*</exclude-method>
+            <exclude-method>toString</exclude-method>
+            <exclude-method>hashCode</exclude-method>
+            <exclude-method>equals</exclude-method>
+            <minimum-method-size>50</minimum-method-size>
+            <minimum-method-lines>5</minimum-method-lines>
+        </rule>
+    </ruleset>
+    
+    <!-- Remote collection (optional) -->
+    <call-export>
+        <host>profiler-collector.internal</host>
+        <port>9090</port>
+        <socket-timeout>5000</socket-timeout>
+        <exclude-params>
+            <exclude-param>password</exclude-param>
+            <exclude-param>token</exclude-param>
+            <exclude-param>secret</exclude-param>
+            <exclude-param>apiKey</exclude-param>
+        </exclude-params>
+    </call-export>
+</profiler-configuration>
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Agent Setup" icon="plug" href="/setup/agent-setup">
+    Review agent attachment procedures
+  </Card>
+  <Card title="Configuration" icon="gear" href="/setup/configuration">
+    Fine-tune configuration options
+  </Card>
+  <Card title="Operations" icon="terminal" href="/operations">
+    Learn operational procedures
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/troubleshooting">
+    Resolve common issues
+  </Card>
+</CardGroup>

@@ -1,0 +1,570 @@
+---
+title: Plugin List
+description: Comprehensive list of all Qubership Profiler Agent instrumentation plugins
+---
+
+The Qubership Profiler Agent provides instrumentation for a wide range of frameworks, libraries, and application servers through its plugin system.
+
+## Plugin Architecture
+
+Each plugin provides:
+- **Bytecode instrumentation** - Automatic method interception
+- **Performance tracking** - Call duration and frequency
+- **Context propagation** - Distributed tracing support
+- **Parameter capture** - Method arguments and return values
+
+## Application Servers & Portals
+
+### Liferay
+
+**Plugin:** `plugins:liferay`
+
+<Card title="Liferay Portal" icon="server">
+  Instruments Liferay Portal for tracking portlet requests, service calls, and portal lifecycle events.
+  
+  **Features:**
+  - Portlet request tracking
+  - Service builder method profiling
+  - Portal event monitoring
+</Card>
+
+## Build Systems
+
+### Apache ANT
+
+**Plugins:** `plugins:ant`, `plugins:ant_1102`
+
+<CardGroup cols={2}>
+  <Card title="ANT ≤ 1.10.1" icon="hammer">
+    **Plugin:** `plugins:ant`
+    
+    Instruments Apache ANT build system for versions up to 1.10.1.
+    
+    **Use Cases:**
+    - Build performance analysis
+    - Task execution tracking
+  </Card>
+  
+  <Card title="ANT ≥ 1.10.2" icon="hammer">
+    **Plugin:** `plugins:ant_1102`
+    
+    Instruments Apache ANT build system for versions 1.10.2 and later.
+    
+    **Use Cases:**
+    - Modern ANT builds
+    - CI/CD pipeline profiling
+  </Card>
+</CardGroup>
+
+## Databases
+
+### Cassandra
+
+**Plugins:** `plugins:cassandra`, `plugins:cassandra4`
+
+<CardGroup cols={2}>
+  <Card title="Cassandra 3.x" icon="database">
+    **Plugin:** `plugins:cassandra`
+    
+    Instruments DataStax Cassandra Java Driver 3.x.
+    
+    **Captured Data:**
+    - CQL queries
+    - Query parameters
+    - Execution time
+    - Consistency levels
+  </Card>
+  
+  <Card title="Cassandra 4.x" icon="database">
+    **Plugin:** `plugins:cassandra4`
+    
+    Instruments DataStax Cassandra Java Driver 4.x.
+    
+    **Features:**
+    - Async query tracking
+    - Reactive streams support
+    - Prepared statement caching
+  </Card>
+</CardGroup>
+
+### Couchbase
+
+**Plugin:** `plugins:couchbase`
+
+<Card title="Couchbase" icon="database">
+  Instruments Couchbase Java SDK for NoSQL database operations.
+  
+  **Captured Data:**
+  - Document operations (get, set, delete)
+  - N1QL queries
+  - View queries
+  - Bucket operations
+</Card>
+
+### Elasticsearch
+
+**Plugin:** `plugins:elasticsearch`
+
+<Card title="Elasticsearch" icon="magnifying-glass">
+  Instruments Elasticsearch Java client for search and indexing operations.
+  
+  **Features:**
+  - Search query tracking
+  - Bulk operations
+  - Index management
+  - Aggregation queries
+</Card>
+
+### MySQL
+
+**Plugin:** `plugins:mysql`
+
+<Card title="MySQL JDBC" icon="database">
+  Instruments MySQL JDBC driver for database operations.
+  
+  **Captured Data:**
+  - SQL queries
+  - Parameter bindings
+  - Execution time
+  - Result set sizes
+  - Connection pool metrics
+</Card>
+
+### OpenSearch
+
+**Plugin:** `plugins:opensearch`
+
+<Card title="OpenSearch" icon="magnifying-glass">
+  Instruments OpenSearch Java client (Elasticsearch fork).
+  
+  **Features:**
+  - Search operations
+  - Index management
+  - Document CRUD
+  - Aggregations
+</Card>
+
+### PostgreSQL
+
+**Plugin:** `plugins:postgresql`
+
+<Card title="PostgreSQL JDBC" icon="database">
+  Instruments PostgreSQL JDBC driver.
+  
+  **Captured Data:**
+  - SQL queries with parameters
+  - Prepared statements
+  - Execution plans (if enabled)
+  - Transaction boundaries
+</Card>
+
+## Distributed Tracing
+
+### Brave (Zipkin)
+
+**Plugin:** `plugins:brave`
+
+<Card title="Brave / Zipkin" icon="network-wired">
+  Integrates with Brave (Zipkin Java client) for distributed tracing.
+  
+  **Features:**
+  - Span correlation
+  - Trace ID propagation
+  - Zipkin reporter integration
+</Card>
+
+### Jaeger
+
+**Plugin:** `plugins:jaeger`
+
+<Card title="Jaeger" icon="network-wired">
+  Integrates with Jaeger distributed tracing system.
+  
+  **Features:**
+  - OpenTracing compatibility
+  - Span context propagation
+  - Baggage support
+</Card>
+
+### Ocelot
+
+**Plugin:** `plugins:ocelot`
+
+<Card title="Ocelot" icon="network-wired">
+  Integrates with Inspectit Ocelot for distributed tracing and monitoring.
+  
+  **Features:**
+  - Context propagation
+  - Metric correlation
+</Card>
+
+## HTTP Clients & Servers
+
+### Apache HttpClient
+
+**Plugin:** `plugins:apache_httpclient`
+
+<Card title="Apache HttpClient" icon="globe">
+  Instruments Apache HttpClient for HTTP request tracking.
+  
+  **Captured Data:**
+  - Request URLs
+  - HTTP methods
+  - Headers (configurable)
+  - Response status codes
+  - Request/response times
+</Card>
+
+### Generic HTTP
+
+**Plugin:** `plugins:http`
+
+<Card title="Generic HTTP" icon="globe">
+  Instruments standard Java HTTP clients (HttpURLConnection).
+  
+  **Use Cases:**
+  - Legacy HTTP code
+  - Standard library HTTP
+</Card>
+
+### Java HTTP Client
+
+**Plugin:** `plugins:java_http_client`
+
+<Card title="Java HTTP Client (Java 11+)" icon="globe">
+  Instruments the modern java.net.http.HttpClient (Java 11+).
+  
+  **Features:**
+  - Async request tracking
+  - HTTP/2 support
+  - WebSocket connections
+</Card>
+
+### Jetty HTTP
+
+**Plugins:** `plugins:jetty_http`, `plugins:jetty10_http`
+
+<CardGroup cols={2}>
+  <Card title="Jetty ≤ 9.x" icon="server">
+    **Plugin:** `plugins:jetty_http`
+    
+    Instruments Jetty servlet container versions up to 9.x.
+    
+    **Features:**
+    - Servlet request tracking
+    - Handler chain profiling
+    - WebSocket support
+  </Card>
+  
+  <Card title="Jetty ≥ 10.x" icon="server">
+    **Plugin:** `plugins:jetty10_http`
+    
+    Instruments Jetty servlet container version 10.x and later (Jakarta EE).
+    
+    **Features:**
+    - Jakarta Servlet support
+    - Handler profiling
+  </Card>
+</CardGroup>
+
+### Tomcat HTTP
+
+**Plugins:** `plugins:tomcat_http`, `plugins:tomcat10_http`
+
+<CardGroup cols={2}>
+  <Card title="Tomcat ≤ 9.x" icon="server">
+    **Plugin:** `plugins:tomcat_http`
+    
+    Instruments Apache Tomcat servlet container up to version 9.x.
+    
+    **Features:**
+    - HTTP request profiling
+    - Servlet tracking
+    - Filter chain monitoring
+  </Card>
+  
+  <Card title="Tomcat ≥ 10.x" icon="server">
+    **Plugin:** `plugins:tomcat10_http`
+    
+    Instruments Apache Tomcat 10.x and later (Jakarta EE).
+    
+    **Features:**
+    - Jakarta Servlet API
+    - Async servlet support
+  </Card>
+</CardGroup>
+
+### Undertow HTTP
+
+**Plugins:** `plugins:undertow_http`, `plugins:undertow23_http`
+
+<CardGroup cols={2}>
+  <Card title="Undertow < 2.3" icon="server">
+    **Plugin:** `plugins:undertow_http`
+    
+    Instruments Undertow web server for versions before 2.3.
+    
+    **Features:**
+    - Handler chain profiling
+    - Exchange attribute capture
+  </Card>
+  
+  <Card title="Undertow ≥ 2.3" icon="server">
+    **Plugin:** `plugins:undertow23_http`
+    
+    Instruments Undertow 2.3 and later.
+    
+    **Features:**
+    - Modern Undertow API
+    - Enhanced handler tracking
+  </Card>
+</CardGroup>
+
+## Java Frameworks
+
+### OSGi Frameworks
+
+**Plugins:** `plugins:apache_felix`, `plugins:equinox`
+
+<CardGroup cols={2}>
+  <Card title="Apache Felix" icon="cubes">
+    **Plugin:** `plugins:apache_felix`
+    
+    Instruments Apache Felix OSGi container.
+    
+    **Features:**
+    - Bundle lifecycle tracking
+    - Service registry monitoring
+  </Card>
+  
+  <Card title="Eclipse Equinox" icon="cubes">
+    **Plugin:** `plugins:equinox`
+    
+    Instruments Eclipse Equinox OSGi container.
+    
+    **Features:**
+    - Bundle activation profiling
+    - Extension point tracking
+  </Card>
+</CardGroup>
+
+### Spring Framework
+
+**Plugins:** `plugins:spring`, `plugins:springrest`
+
+<CardGroup cols={2}>
+  <Card title="Spring Framework" icon="leaf">
+    **Plugin:** `plugins:spring`
+    
+    Instruments core Spring Framework components.
+    
+    **Features:**
+    - Bean creation tracking
+    - AOP advice profiling
+    - Transaction boundaries
+    - Event publishing
+  </Card>
+  
+  <Card title="Spring REST" icon="leaf">
+    **Plugin:** `plugins:springrest`
+    
+    Instruments Spring Web MVC and WebFlux REST controllers.
+    
+    **Features:**
+    - RestController method tracking
+    - Request mapping profiling
+    - Async controller support
+  </Card>
+</CardGroup>
+
+### Vert.x
+
+**Plugin:** `plugins:vertx`
+
+<Card title="Vert.x" icon="bolt">
+  Instruments Eclipse Vert.x reactive toolkit.
+  
+  **Features:**
+  - Verticle deployment tracking
+  - Event bus message profiling
+  - HTTP server/client operations
+  - Async operation correlation
+</Card>
+
+## Logging Frameworks
+
+### Log4j
+
+**Plugin:** `plugins:log4j_enhancer`
+
+<Card title="Log4j Enhancer" icon="file-lines">
+  Enhances Log4j logging with profiling context.
+  
+  **Features:**
+  - MDC context injection
+  - Trace ID propagation
+  - Log correlation with profiling traces
+</Card>
+
+## Message Queues
+
+### ActiveMQ
+
+**Plugin:** `plugins:activemq`
+
+<Card title="Apache ActiveMQ" icon="message">
+  Instruments Apache ActiveMQ JMS client.
+  
+  **Captured Data:**
+  - Message send/receive operations
+  - Queue/topic names
+  - Message IDs
+  - Correlation IDs
+</Card>
+
+### HornetQ
+
+**Plugin:** `plugins:hornetq`
+
+<Card title="HornetQ" icon="message">
+  Instruments HornetQ (JBoss Messaging) JMS client.
+  
+  **Features:**
+  - JMS operations
+  - Message tracking
+  - Transaction boundaries
+</Card>
+
+### RabbitMQ
+
+**Plugin:** `plugins:rabbitmq`
+
+<Card title="RabbitMQ" icon="message">
+  Instruments RabbitMQ Java client (AMQP).
+  
+  **Captured Data:**
+  - Message publish/consume
+  - Exchange and routing key
+  - Message properties
+  - Acknowledgments
+</Card>
+
+## Serialization & Data Processing
+
+### Jackson
+
+**Plugin:** `plugins:jackson`
+
+<Card title="Jackson JSON" icon="brackets-curly">
+  Instruments Jackson JSON parser/generator.
+  
+  **Features:**
+  - Serialization time tracking
+  - Deserialization profiling
+  - Large object detection
+</Card>
+
+## Scheduling
+
+### Quartz
+
+**Plugin:** `plugins:quartz`
+
+<Card title="Quartz Scheduler" icon="clock">
+  Instruments Quartz job scheduler.
+  
+  **Features:**
+  - Job execution tracking
+  - Trigger monitoring
+  - Scheduler state
+  - Job duration and frequency
+</Card>
+
+## Scripting
+
+### Rhino
+
+**Plugin:** `plugins:rhino`
+
+<Card title="Mozilla Rhino" icon="code">
+  Instruments Rhino JavaScript engine for Java.
+  
+  **Features:**
+  - Script execution tracking
+  - Function call profiling
+  - Context switching
+</Card>
+
+## Testing & Development
+
+### Test Plugin
+
+**Plugin:** `plugins:test`
+
+<Card title="Test Plugin" icon="flask">
+  Internal testing plugin for plugin development and validation.
+  
+  **Purpose:**
+  - Plugin API testing
+  - Instrumentation validation
+  - Example implementations
+</Card>
+
+## Plugin Configuration
+
+Plugins are automatically loaded based on detected libraries on the classpath. No explicit configuration is required in most cases.
+
+### Enabling/Disabling Plugins
+
+To control which plugins are active, use the agent configuration:
+
+```xml
+<profiler>
+  <plugins>
+    <plugin name="spring" enabled="true"/>
+    <plugin name="mysql" enabled="true"/>
+    <plugin name="cassandra" enabled="false"/>
+  </plugins>
+</profiler>
+```
+
+### Plugin Loading Priority
+
+Plugins are loaded in this order:
+
+1. **Core plugins** - HTTP, JDBC, basic instrumentation
+2. **Framework plugins** - Spring, Jakarta EE
+3. **Library plugins** - Third-party integrations
+
+## Plugin Development
+
+To create custom plugins:
+
+1. Implement the `ProfilerPlugin` interface
+2. Define instrumentation points using the plugin API
+3. Package as a separate module under `plugins/`
+4. Add to `settings.gradle.kts`
+
+See the [Plugin Development Guide](/development/plugin-development) for details.
+
+## Version Compatibility Matrix
+
+| Category | Plugin | Minimum Version | Maximum Version | Notes |
+|----------|--------|----------------|-----------------|-------|
+| Application Server | Tomcat | 7.0 | 9.x | Use tomcat10_http for 10+ |
+| Application Server | Jetty | 7.0 | 9.x | Use jetty10_http for 10+ |
+| Application Server | Undertow | 1.0 | 2.2 | Use undertow23_http for 2.3+ |
+| Database | MySQL | 5.0 | 8.x | JDBC driver |
+| Database | PostgreSQL | 9.0 | 16.x | JDBC driver |
+| Database | Cassandra | 3.0 | 3.x | Use cassandra4 for 4.x |
+| Framework | Spring | 4.0 | 6.x | Core framework |
+| Framework | Vert.x | 3.0 | 4.x | Reactive toolkit |
+| Queue | RabbitMQ | 3.0 | 5.x | Java client |
+| Queue | ActiveMQ | 5.0 | 5.x | JMS client |
+| Build | ANT | 1.7 | 1.10.1 | Use ant_1102 for newer |
+
+## Related Pages
+
+- [Supported Versions](/reference/supported-versions) - Detailed version compatibility
+- [Agent Configuration](/reference/agent-configuration) - Plugin configuration options
+- [Plugin Development Guide](/development/plugin-development) - Create custom plugins

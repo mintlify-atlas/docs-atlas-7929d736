@@ -1,0 +1,314 @@
+---
+title: Distributed Tracing Integration
+description: Integrate Qubership Profiler Agent with Brave, Jaeger, and OpenTelemetry for distributed tracing
+---
+
+The Qubership Profiler Agent integrates seamlessly with popular distributed tracing systems to correlate profiling data with trace IDs and span IDs. This enables you to connect performance profiles with distributed traces across your microservices architecture.
+
+## Supported Tracing Systems
+
+The profiler provides native integration with:
+
+- **Brave** (Zipkin instrumentation library)
+- **Jaeger** (OpenTracing implementation)
+- **OpenTelemetry** (via Ocelot plugin)
+- **OpenCensus** (via Ocelot plugin)
+
+## How It Works
+
+The profiler uses bytecode instrumentation to intercept span creation in tracing libraries and automatically extracts trace IDs and span IDs. These IDs are then logged as profiling parameters and associated with the profiled call tree.
+
+### Integration Flow
+
+1. Application creates a new span using a supported tracing library
+2. Profiler intercepts the span creation via instrumented methods
+3. Trace ID and span ID are extracted from the span context
+4. IDs are logged as profiling events and stored with call data
+5. Profiler sets the trace ID as the end-to-end correlation ID
+6. Data is transmitted to the collector with trace context
+
+## Brave Integration
+
+### Configuration
+
+The Brave plugin automatically instruments the `brave.RealSpan` class to capture trace information:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<profiler-configuration>
+    <enhancer>brave</enhancer>
+    <parameters>
+        <parameter name="brave.trace_id" index="true" list="false"/>
+        <parameter name="brave.span_id" index="true" list="false" order="800"/>
+        <parameter name="brave.parent_id" index="true" list="false" order="810"/>
+    </parameters>
+    <ruleset if-enhancer="brave">
+        <rule>
+            <class>brave.RealSpan</class>
+            <method>start(long)</method>
+            <execute-after>logSpanIds$profiler()</execute-after>
+        </rule>
+        <rule>
+            <class>brave.RealSpan</class>
+            <method>tag(String, String)</method>
+            <execute-after>logTag$profiler(p1, p2)</execute-after>
+        </rule>
+    </ruleset>
+</profiler-configuration>
+```
+
+### Captured Data
+
+The Brave integration captures:
+
+- **Trace ID**: Unique identifier for the entire distributed trace
+- **Span ID**: Unique identifier for the current span
+- **Parent ID**: ID of the parent span in the trace hierarchy
+- **Span Tags**: Custom tags added to spans via `tag(String, String)`
+
+### Implementation Details
+
+The profiler injects the `logSpanIds$profiler()` method into `brave.RealSpan`:
+
+```java
+void logSpanIds$profiler() {
+    if(Profiler.getState().sp <= 1) return; // Skip if not profiled
+    TraceContext context = context();
+    if (context == null || !context.sampled()) return;
+    
+    String traceId = context.traceIdString();
+    
+    // Set as end-to-end correlation ID
+    CallInfo callInfo = Profiler.getState().callInfo;
+    if (callInfo.getEndToEndId() == null) {
+        callInfo.setEndToEndId(traceId);
+    }
+    callInfo.setTraceId(traceId);
+    
+    // Log trace IDs as events
+    Profiler.event(traceId, "brave.trace_id");
+    Long parentId = context.parentId();
+    if (parentId != null) {
+        Profiler.event(Long.toHexString(parentId), "brave.parent_id");
+    }
+    Profiler.event(Long.toHexString(context.spanId()), "brave.span_id");
+}
+```
+
+## Jaeger Integration
+
+### Configuration
+
+The Jaeger plugin instruments the `io.jaegertracing.internal.JaegerSpan` class:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<profiler-configuration>
+    <enhancer>jaeger</enhancer>
+    <parameters>
+        <parameter name="trace.id" index="true" list="true"/>
+    </parameters>
+    <ruleset if-enhancer="jaeger">
+        <rule>
+            <class>io.jaegertracing.internal.JaegerTracer$SpanBuilder</class>
+            <method>start</method>
+            <execute-after static="true" class="io.jaegertracing.internal.JaegerSpan">
+                logIdAfterStart$profiler(io.opentracing.Span result)
+            </execute-after>
+        </rule>
+    </ruleset>
+</profiler-configuration>
+```
+
+### Captured Data
+
+The Jaeger integration captures:
+
+- **Trace ID**: Full trace identifier from the Jaeger span context
+- **End-to-End ID**: Uses trace ID for correlation across services
+
+### Implementation Details
+
+```java
+static void logIdAfterStart$profiler(Span span) {
+    if(Profiler.getState().sp <= 1) return; // Skip if not profiled
+    SpanContext context = span.context();
+    if (context == null) return;
+    
+    String traceId = context.toTraceId();
+    
+    // Populate end-to-end correlation
+    CallInfo callInfo = Profiler.getState().callInfo;
+    if (callInfo.getEndToEndId() == null) {
+        callInfo.setEndToEndId(traceId);
+    }
+    callInfo.setTraceId(traceId);
+    
+    // Log trace ID only if changed
+    if (callInfo.traceIdChanged()) {
+        Profiler.event(traceId, "trace.id");
+    }
+}
+```
+
+## OpenTelemetry/OpenCensus Integration (Ocelot)
+
+### Configuration
+
+The Ocelot plugin supports both OpenTelemetry and OpenCensus:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<profiler-configuration>
+    <enhancer>ocelot</enhancer>
+    <parameters>
+        <parameter name="trace.id" index="true" list="true"/>
+    </parameters>
+    <ruleset if-enhancer="ocelot">
+        <rule>
+            <class>io.opencensus.trace.Span</class>
+            <method>&lt;init&gt;</method>
+            <execute-after>logIdAfterStart$profiler</execute-after>
+        </rule>
+        <rule>
+            <class>io.opentelemetry.sdk.trace.SdkSpan</class>
+            <method>&lt;init&gt;</method>
+            <execute-after>logIdAfterStart$profiler</execute-after>
+        </rule>
+    </ruleset>
+</profiler-configuration>
+```
+
+### OpenTelemetry Implementation
+
+```java
+public void logIdAfterStart$profiler() {
+    if(Profiler.getState().sp == 0) return; // Skip if not profiled
+    
+    SpanContext context = getSpanContext();
+    if (context == null) return;
+    
+    String traceId = context.getTraceId();
+    if (traceId == null) return;
+    
+    // Set as end-to-end correlation ID
+    CallInfo callInfo = Profiler.getState().callInfo;
+    if (callInfo.getEndToEndId() == null) {
+        callInfo.setEndToEndId(traceId);
+    }
+    callInfo.setTraceId(traceId);
+    
+    // Log trace ID if changed
+    if(callInfo.traceIdChanged()) {
+        Profiler.event(traceId, "trace.id");
+    }
+}
+```
+
+## Enabling Tracing Integration
+
+To enable tracing integration:
+
+1. **Include the appropriate plugin** in your profiler configuration
+2. **Configure the enhancer** in your XML configuration file
+3. **Ensure the tracing library** is present in your application classpath
+4. **Verify instrumentation** by checking profiler logs for trace IDs
+
+### Example: Enabling Brave
+
+```bash
+java -javaagent:/path/to/profiler.jar \
+     -Dprofiler.enhancer=brave \
+     -jar your-application.jar
+```
+
+### Example: Enabling Jaeger
+
+```bash
+java -javaagent:/path/to/profiler.jar \
+     -Dprofiler.enhancer=jaeger \
+     -jar your-application.jar
+```
+
+## Viewing Trace IDs in the UI
+
+Once integrated, trace IDs appear in the profiler web UI:
+
+1. Navigate to the **Call List** view
+2. Trace IDs are displayed as indexed parameters
+3. Use the search functionality to filter by trace ID
+4. Click on a call to see associated trace context
+
+### Searching by Trace ID
+
+In the search box, use parameter-based queries:
+
+```
+# Brave trace ID
++$brave.trace_id=abc123def456
+
+# Jaeger/OpenTelemetry trace ID
++$trace.id=abc123def456
+
+# Search for all calls with a specific span
++$brave.span_id=789abc
+```
+
+## Best Practices
+
+<Tip>
+**Performance Consideration**: The profiler only logs trace IDs for spans created under profiled code (when `sp > 0` or `sp > 1`). This prevents unnecessary overhead from background spans.
+</Tip>
+
+### Correlation Strategy
+
+1. **Use trace ID as end-to-end ID**: The profiler automatically sets the trace ID as the end-to-end correlation ID if none exists
+2. **Leverage indexed parameters**: Trace IDs are indexed for fast searching
+3. **Filter by service**: Combine trace ID searches with service name filters for multi-service traces
+
+### Multi-Service Correlation
+
+When profiling multiple services in a distributed system:
+
+1. Enable the same tracing integration on all services
+2. Use the profiler's cloud features to filter by namespace and service
+3. Search for the same trace ID across different service instances
+4. Correlate timings across the distributed call graph
+
+## Troubleshooting
+
+### Trace IDs Not Appearing
+
+**Check enhancer configuration**:
+- Verify the correct enhancer is specified
+- Ensure the plugin XML is loaded
+- Check profiler startup logs for enhancer activation
+
+**Verify tracing library presence**:
+- Confirm the tracing library (Brave, Jaeger, etc.) is on the classpath
+- Check library version compatibility
+- Look for class loading errors in logs
+
+**Confirm profiling is active**:
+- Ensure calls are being profiled (duration threshold met)
+- Check that the span is created within profiled code
+- Verify sampling is enabled in your tracing configuration
+
+### Multiple Trace IDs
+
+If you see multiple trace IDs for a single request:
+
+- This may indicate span creation in both parent and child contexts
+- Review your tracing instrumentation to understand the span hierarchy
+- Use parent ID to reconstruct the trace tree
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Data Collection" icon="database" href="./data-collection">
+    Learn how profiling data is collected and transported
+  </Card>
+  <Card title="Web UI" icon="browser" href="./web-ui">
+    Explore the web interface for analyzing profiling data
+  </Card>
+</CardGroup>

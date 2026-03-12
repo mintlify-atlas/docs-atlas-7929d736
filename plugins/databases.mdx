@@ -1,0 +1,301 @@
+---
+title: Database Plugins
+description: Database instrumentation plugins for Cassandra, MySQL, PostgreSQL, ElasticSearch, OpenSearch, and Couchbase
+---
+
+## Overview
+
+The Qubership Profiler Agent provides comprehensive instrumentation for popular database drivers and clients. These plugins capture SQL queries, bind parameters, execution times, and errors to give you complete visibility into database interactions.
+
+## Available Database Plugins
+
+<CardGroup cols={2}>
+  <Card title="Cassandra" icon="database">
+    DataStax Cassandra driver instrumentation for 3.x and 4.x
+  </Card>
+  <Card title="MySQL" icon="database">
+    MySQL JDBC driver instrumentation
+  </Card>
+  <Card title="PostgreSQL" icon="database">
+    PostgreSQL JDBC driver instrumentation
+  </Card>
+  <Card title="ElasticSearch" icon="magnifying-glass">
+    ElasticSearch client instrumentation
+  </Card>
+  <Card title="OpenSearch" icon="magnifying-glass">
+    OpenSearch client instrumentation
+  </Card>
+  <Card title="Couchbase" icon="database">
+    Couchbase client instrumentation
+  </Card>
+</CardGroup>
+
+## DataStax Cassandra
+
+The profiler provides separate plugins for different Cassandra driver versions to ensure compatibility.
+
+### Cassandra 3.x Plugin
+
+**Module**: `plugins:cassandra`
+
+Instruments the DataStax Cassandra Java driver 3.x for:
+- CQL query execution
+- Prepared statements
+- Batch operations
+- Async query execution
+- Query timing and errors
+
+**Supported Versions**: DataStax Cassandra driver 3.x
+
+**Configuration**: `config/minimal/50main/cassandra.xml`
+
+### Cassandra 4.x Plugin
+
+**Module**: `plugins:cassandra4`
+
+Instruments the DataStax Cassandra Java driver 4.x with support for:
+- Modern async API
+- Reactive streams
+- CQL query execution
+- Prepared statements
+- Query metrics
+
+**Supported Versions**: DataStax Cassandra driver 4.x
+
+**Configuration**: `config/minimal/50main/cassandra4.xml`
+
+### What's Captured
+
+- CQL query text
+- Query parameters and bind values
+- Execution time
+- Connection information
+- Error details and stack traces
+- Async operation correlation
+
+## MySQL JDBC
+
+**Module**: `plugins:mysql`
+
+Instruments the MySQL JDBC driver to capture:
+- SQL query execution
+- Prepared statement parameters
+- Batch operations
+- Transaction boundaries
+- Connection pool activity
+
+**Supported Versions**: MySQL Connector/J (JDBC driver)
+
+**Configuration**: `config/minimal/50main/mysql.xml`
+
+### Features
+
+<AccordionGroup>
+  <Accordion title="SQL Query Capture">
+    Captures the full SQL query text including SELECT, INSERT, UPDATE, DELETE, and DDL statements.
+  </Accordion>
+  
+  <Accordion title="Bind Parameter Capture">
+    Records prepared statement parameters for complete query visibility, helping you debug parameter-related issues.
+  </Accordion>
+  
+  <Accordion title="Performance Metrics">
+    Tracks query execution time, allowing you to identify slow queries and optimization opportunities.
+  </Accordion>
+  
+  <Accordion title="Error Tracking">
+    Captures SQL exceptions and error details for troubleshooting database issues.
+  </Accordion>
+</AccordionGroup>
+
+## PostgreSQL JDBC
+
+**Module**: `plugins:postgresql`
+
+Instruments the PostgreSQL JDBC driver for comprehensive query monitoring:
+- SQL query execution
+- Prepared statements with parameters
+- Batch operations
+- Transaction tracking
+- Error and exception capture
+
+**Supported Versions**: PostgreSQL JDBC driver
+
+**Configuration**: `config/minimal/50main/postgresql.xml`
+
+### Capabilities
+
+- Full SQL query capture
+- Bind parameter values
+- Execution timing
+- Connection details
+- Transaction context
+- Error stack traces
+
+## ElasticSearch
+
+**Module**: `plugins:elasticsearch`
+
+Instruments the ElasticSearch Java client to monitor:
+- Search queries
+- Index operations
+- Bulk operations
+- Document CRUD operations
+- Aggregations
+
+**Supported Versions**: ElasticSearch Java client
+
+**Configuration**: `config/minimal/50main/elasticsearch.xml`
+
+### Monitored Operations
+
+| Operation Type | Captured Data |
+|----------------|---------------|
+| Search | Query DSL, filters, aggregations, response time |
+| Index | Document content, index name, operation time |
+| Bulk | Batch size, individual operations, errors |
+| Get | Document ID, index, response time |
+| Delete | Document ID, index, success/failure |
+
+## OpenSearch
+
+**Module**: `plugins:opensearch`
+
+Instruments the OpenSearch Java client with similar capabilities to the ElasticSearch plugin:
+- Search operations
+- Index management
+- Document operations
+- Bulk processing
+- Aggregation queries
+
+**Supported Versions**: OpenSearch Java client
+
+**Configuration**: `config/minimal/50main/opensearch.xml`
+
+<Note>
+OpenSearch is a fork of ElasticSearch. The OpenSearch plugin provides instrumentation for applications that have migrated to OpenSearch.
+</Note>
+
+## Couchbase
+
+**Module**: `plugins:couchbase`
+
+Instruments the Couchbase Java client for:
+- N1QL query execution
+- Key-value operations
+- View queries
+- Full-text search
+- Async operations
+
+**Supported Versions**: Couchbase Java SDK
+
+**Configuration**: `config/minimal/50main/couchbase.xml`
+
+### Query Types
+
+<Tabs>
+  <Tab title="N1QL">
+    - SQL-like query instrumentation
+    - Parameter capture
+    - Query planning visibility
+    - Performance metrics
+  </Tab>
+  <Tab title="Key-Value">
+    - Get/Set operations
+    - Atomic operations
+    - Bulk operations
+    - Sub-document operations
+  </Tab>
+  <Tab title="Views">
+    - Map-reduce view queries
+    - Spatial views
+    - View parameters
+  </Tab>
+  <Tab title="FTS">
+    - Full-text search queries
+    - Search parameters
+    - Result metrics
+  </Tab>
+</Tabs>
+
+## Configuration
+
+All database plugins are automatically enabled when the agent detects the corresponding JDBC driver or client library in your application's classpath.
+
+### Customizing Database Instrumentation
+
+You can customize database instrumentation by modifying the plugin configuration files:
+
+```xml
+<profiler-configuration>
+  <ruleset>
+    <rule>
+      <class>com.mysql.jdbc.PreparedStatement</class>
+      <method>execute</method>
+      <method-editor>MySQLQueryHandler</method-editor>
+    </rule>
+  </ruleset>
+</profiler-configuration>
+```
+
+### Sensitive Data Handling
+
+<Warning>
+Database plugins capture SQL queries and parameters, which may contain sensitive data. Ensure you have appropriate data retention and access control policies in place.
+</Warning>
+
+To exclude sensitive data from capture:
+
+1. Configure the agent to filter specific queries or parameters
+2. Use database-level encryption for sensitive columns
+3. Review and redact captured data before long-term storage
+
+## Performance Impact
+
+Database plugins are designed to have minimal performance impact:
+
+- **Low overhead**: Instrumentation code is optimized for speed
+- **Selective capture**: Only slow queries or errors trigger detailed capture
+- **Async processing**: Event reporting happens asynchronously
+- **Sampling**: Configurable sampling rates reduce overhead
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Plugin Not Capturing Queries">
+    - Verify the database driver is in the classpath
+    - Check that the plugin configuration file is present
+    - Ensure the agent is attached with the `-javaagent` flag
+    - Review agent logs for instrumentation errors
+  </Accordion>
+  
+  <Accordion title="Performance Degradation">
+    - Increase capture thresholds to reduce overhead
+    - Enable sampling to capture only a subset of queries
+    - Check for excessive logging or event reporting
+    - Review database query performance independently
+  </Accordion>
+  
+  <Accordion title="Missing Query Parameters">
+    - Verify the driver supports parameter metadata
+    - Check plugin configuration for parameter capture settings
+    - Some drivers may not expose bind parameters to instrumentation
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="HTTP Client Plugins" icon="network-wired" href="/plugins/http-clients">
+    Explore HTTP client instrumentation
+  </Card>
+  <Card title="Framework Plugins" icon="layer-group" href="/plugins/frameworks">
+    Learn about framework plugins
+  </Card>
+  <Card title="Configuration" icon="gear" href="/setup/configuration">
+    Configure the profiler agent
+  </Card>
+  <Card title="Monitoring" icon="chart-line" href="/operations/monitoring">
+    Monitor your instrumented application
+  </Card>
+</CardGroup>

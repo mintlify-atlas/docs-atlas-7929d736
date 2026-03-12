@@ -1,0 +1,508 @@
+---
+title: "Installation"
+description: "Install the Qubership Profiler Agent in different environments"
+---
+
+The Qubership Profiler Agent can be installed and integrated into your Java applications using several methods. This guide covers installation for Gradle, Maven, Docker, and manual deployment.
+
+## System Requirements
+
+Before installing, verify your system meets these requirements:
+
+- **Java Version**: Java 17 or higher (required for building and running)
+- **Operating System**: Linux, macOS, or Windows
+- **Architecture**: x86_64 or ARM64
+- **Disk Space**: ~50 MB for agent distribution
+- **Memory**: Agent overhead is minimal (~10-20 MB)
+
+## Installation Methods
+
+Choose the installation method that best fits your deployment environment:
+
+<CardGroup cols={2}>
+
+<Card title="Gradle" icon="gradle">
+  Dependency-based installation for Gradle projects
+</Card>
+
+<Card title="Maven" icon="apache">
+  Dependency-based installation for Maven projects
+</Card>
+
+<Card title="Manual Download" icon="download">
+  Direct download and extraction
+</Card>
+
+<Card title="Docker" icon="docker">
+  Container-based deployment with base images
+</Card>
+
+</CardGroup>
+
+---
+
+## Gradle Installation
+
+Add the Qubership Profiler Agent as a dependency to your Gradle build.
+
+### Step 1: Add Maven Central Repository
+
+Ensure Maven Central is included in your repositories:
+
+```kotlin build.gradle.kts
+repositories {
+    mavenCentral()
+}
+```
+
+### Step 2: Add Agent Dependency
+
+Create a configuration for the profiler agent:
+
+```kotlin build.gradle.kts
+val profilerAgent by configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, "javaagent"))
+    }
+}
+
+dependencies {
+    profilerAgent("com.github.netcracker:qubership-profiler-agent:3.1.6")
+}
+```
+
+### Step 3: Extract and Use in Tasks
+
+Extract the agent distribution and configure your run task:
+
+```kotlin build.gradle.kts
+val extractProfiler by tasks.registering(Sync::class) {
+    from(profilerAgent.map { zipTree(it.singleFile) })
+    into(layout.buildDirectory.dir("profiler"))
+}
+
+tasks.named<JavaExec>("run") {
+    dependsOn(extractProfiler)
+    
+    val profilerHome = extractProfiler.get().destinationDir
+    jvmArgs("-javaagent:${profilerHome}/lib/qubership-profiler-agent.jar")
+    
+    // Optional: Set profiler home
+    systemProperty("profiler.home", profilerHome.absolutePath)
+}
+```
+
+### Complete Example
+
+Here's a complete `build.gradle.kts` configuration:
+
+```kotlin build.gradle.kts
+plugins {
+    java
+    application
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("your:dependencies:here")
+}
+
+val profilerAgent by configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, "javaagent"))
+    }
+}
+
+dependencies {
+    profilerAgent("com.github.netcracker:qubership-profiler-agent:3.1.6")
+}
+
+val extractProfiler by tasks.registering(Sync::class) {
+    from(profilerAgent.map { zipTree(it.singleFile) })
+    into(layout.buildDirectory.dir("profiler"))
+}
+
+application {
+    mainClass.set("com.example.MainApplication")
+}
+
+tasks.named<JavaExec>("run") {
+    dependsOn(extractProfiler)
+    
+    val profilerHome = extractProfiler.get().destinationDir
+    jvmArgs("-javaagent:${profilerHome}/lib/qubership-profiler-agent.jar")
+    
+    // Configure collector endpoint via environment
+    environment("REMOTE_DUMP_HOST", System.getenv("REMOTE_DUMP_HOST") ?: "localhost")
+    environment("REMOTE_DUMP_PORT_PLAIN", System.getenv("REMOTE_DUMP_PORT_PLAIN") ?: "1715")
+}
+```
+
+---
+
+## Maven Installation
+
+Add the Qubership Profiler Agent to your Maven project.
+
+### Step 1: Add Dependency
+
+Add the agent as a dependency with a custom classifier if available, or use the Maven dependency plugin:
+
+```xml pom.xml
+<project>
+    <dependencies>
+        <dependency>
+            <groupId>com.github.netcracker</groupId>
+            <artifactId>qubership-profiler-agent</artifactId>
+            <version>3.1.6</version>
+            <type>zip</type>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+</project>
+```
+
+### Step 2: Extract the Agent
+
+Use the `maven-dependency-plugin` to extract the agent distribution:
+
+```xml pom.xml
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <version>3.6.0</version>
+            <executions>
+                <execution>
+                    <id>unpack-profiler</id>
+                    <phase>process-resources</phase>
+                    <goals>
+                        <goal>unpack-dependencies</goal>
+                    </goals>
+                    <configuration>
+                        <includeGroupIds>com.github.netcracker</includeGroupIds>
+                        <includeArtifactIds>qubership-profiler-agent</includeArtifactIds>
+                        <outputDirectory>${project.build.directory}/profiler</outputDirectory>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
+    </plugins>
+</build>
+```
+
+### Step 3: Configure Exec Plugin
+
+Use the `exec-maven-plugin` to run your application with the agent:
+
+```xml pom.xml
+<plugin>
+    <groupId>org.codehaus.mojo</groupId>
+    <artifactId>exec-maven-plugin</artifactId>
+    <version>3.1.0</version>
+    <configuration>
+        <executable>java</executable>
+        <arguments>
+            <argument>-javaagent:${project.build.directory}/profiler/lib/qubership-profiler-agent.jar</argument>
+            <argument>-classpath</argument>
+            <classpath/>
+            <argument>com.example.MainApplication</argument>
+        </arguments>
+        <environmentVariables>
+            <REMOTE_DUMP_HOST>localhost</REMOTE_DUMP_HOST>
+            <REMOTE_DUMP_PORT_PLAIN>1715</REMOTE_DUMP_PORT_PLAIN>
+        </environmentVariables>
+    </configuration>
+</plugin>
+```
+
+---
+
+## Manual Installation
+
+Download and install the agent manually for maximum control.
+
+<Steps>
+  <Step title="Download the distribution">
+    Download the latest release from GitHub:
+    
+    ```bash
+    VERSION=3.1.6
+    curl -L -o qubership-profiler-agent-${VERSION}.zip \
+      https://github.com/Netcracker/qubership-profiler-agent/releases/download/v${VERSION}/qubership-profiler-agent-${VERSION}.zip
+    ```
+  </Step>
+
+  <Step title="Extract to installation directory">
+    Extract the archive to your preferred location:
+    
+    ```bash
+    sudo mkdir -p /opt/qubership/profiler
+    sudo unzip qubership-profiler-agent-${VERSION}.zip -d /opt/qubership/profiler
+    ```
+    
+    The directory structure will be:
+    
+    ```
+    /opt/qubership/profiler/
+    ├── lib/
+    │   ├── qubership-profiler-agent.jar
+    │   ├── qubership-profiler-boot.jar
+    │   ├── qubership-profiler-runtime.jar
+    │   └── [plugin JARs...]
+    └── config/
+        ├── _config.xml
+        ├── _config.filters.xml
+        └── logback.xml
+    ```
+  </Step>
+
+  <Step title="Set environment variable (optional)">
+    Export the profiler home directory:
+    
+    ```bash
+    export PROFILER_HOME=/opt/qubership/profiler
+    ```
+    
+    Add this to your shell profile (`.bashrc`, `.zshrc`, etc.) for persistence.
+  </Step>
+
+  <Step title="Configure your application">
+    Add the agent to your application's JVM arguments:
+    
+    ```bash
+    java -javaagent:/opt/qubership/profiler/lib/qubership-profiler-agent.jar \
+         -jar your-application.jar
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  Ensure the user running the Java application has read permissions for all files in the profiler directory.
+</Warning>
+
+---
+
+## Docker Installation
+
+Integrate the profiler agent into Docker containers.
+
+### Option 1: Add to Existing Image
+
+Create a Dockerfile that adds the profiler to your application image:
+
+```dockerfile Dockerfile
+FROM openjdk:17-slim
+
+# Install profiler agent
+ARG PROFILER_VERSION=3.1.6
+RUN apt-get update && apt-get install -y curl unzip && \
+    mkdir -p /opt/qubership/profiler && \
+    curl -L -o /tmp/profiler.zip \
+      https://github.com/Netcracker/qubership-profiler-agent/releases/download/v${PROFILER_VERSION}/qubership-profiler-agent-${PROFILER_VERSION}.zip && \
+    unzip /tmp/profiler.zip -d /opt/qubership/profiler && \
+    rm /tmp/profiler.zip && \
+    apt-get remove -y curl unzip && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy your application
+COPY target/your-application.jar /app/application.jar
+
+# Set environment variables
+ENV PROFILER_HOME=/opt/qubership/profiler
+ENV JAVA_OPTS="-javaagent:/opt/qubership/profiler/lib/qubership-profiler-agent.jar"
+
+# Run with profiler
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/application.jar"]
+```
+
+### Option 2: Use Volume Mount
+
+Mount the profiler as a volume (useful for development):
+
+```bash
+docker run -v /opt/qubership/profiler:/profiler \
+           -e JAVA_OPTS="-javaagent:/profiler/lib/qubership-profiler-agent.jar" \
+           -e REMOTE_DUMP_HOST=collector.example.com \
+           your-app-image
+```
+
+### Option 3: Multi-Stage Build
+
+Use a multi-stage build to download and extract the agent:
+
+```dockerfile Dockerfile
+# Stage 1: Download profiler
+FROM alpine:latest AS profiler-downloader
+ARG PROFILER_VERSION=3.1.6
+RUN apk add --no-cache curl unzip && \
+    mkdir -p /profiler && \
+    curl -L -o /tmp/profiler.zip \
+      https://github.com/Netcracker/qubership-profiler-agent/releases/download/v${PROFILER_VERSION}/qubership-profiler-agent-${PROFILER_VERSION}.zip && \
+    unzip /tmp/profiler.zip -d /profiler
+
+# Stage 2: Application image
+FROM openjdk:17-slim
+COPY --from=profiler-downloader /profiler /opt/qubership/profiler
+COPY target/your-application.jar /app/application.jar
+
+ENV JAVA_OPTS="-javaagent:/opt/qubership/profiler/lib/qubership-profiler-agent.jar"
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/application.jar"]
+```
+
+---
+
+## Building from Source
+
+Build the agent from source for development or customization.
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/Netcracker/qubership-profiler-agent.git
+    cd qubership-profiler-agent
+    ```
+  </Step>
+
+  <Step title="Build with Gradle">
+    ```bash
+    ./gradlew build
+    ```
+    
+    This will:
+    - Compile all source code
+    - Run tests
+    - Build the agent and all plugins
+    - Create the distribution archive
+  </Step>
+
+  <Step title="Locate build artifacts">
+    The built distribution will be in:
+    
+    ```
+    installer/build/distributions/qubership-profiler-agent-<version>.zip
+    ```
+    
+    Individual JARs are located in their respective module build directories:
+    - `agent/build/libs/qubership-profiler-agent-<version>.jar`
+    - `boot/build/libs/qubership-profiler-boot-<version>.jar`
+    - `runtime/build/libs/qubership-profiler-runtime-<version>.jar`
+  </Step>
+</Steps>
+
+<Note>
+  Building requires Java 17. See the [Development Guide](/development/building) for detailed build instructions.
+</Note>
+
+---
+
+## Verification
+
+After installation, verify the agent is working correctly:
+
+### 1. Check Installation Structure
+
+Verify all required files are present:
+
+```bash
+ls -la /opt/qubership/profiler/lib/
+```
+
+You should see:
+- `qubership-profiler-agent.jar`
+- `qubership-profiler-boot.jar`
+- `qubership-profiler-runtime.jar`
+- Plugin JARs (e.g., `qubership-profiler-http.jar`, `qubership-profiler-mysql.jar`, etc.)
+
+### 2. Test Agent Attachment
+
+Run a simple Java application with the agent:
+
+```bash
+java -javaagent:/opt/qubership/profiler/lib/qubership-profiler-agent.jar \
+     -version
+```
+
+You should see the profiler initialization message before the Java version output.
+
+### 3. Check Logs
+
+Look for the profiler initialization log:
+
+```
+Profiler: initialized, version 3.1.6
+```
+
+If you see error messages about missing classes or JARs, verify that all files were extracted correctly.
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+
+<Card title="Quickstart" icon="rocket" href="/quickstart">
+  Follow the quickstart guide to start profiling
+</Card>
+
+<Card title="Configuration" icon="gear" href="/setup/configuration">
+  Learn about configuration options
+</Card>
+
+<Card title="Plugin Overview" icon="puzzle-piece" href="/plugins/overview">
+  Explore available instrumentation plugins
+</Card>
+
+<Card title="Troubleshooting" icon="wrench" href="/operations/troubleshooting">
+  Solve common installation issues
+</Card>
+
+</CardGroup>
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Agent JAR not found">
+    **Error**: `Error opening zip file or JAR manifest missing : /path/to/agent.jar`
+    
+    **Solution**: Verify the path to the agent JAR is correct and the file exists. Use an absolute path if possible.
+  </Accordion>
+
+  <Accordion title="Permission denied">
+    **Error**: `java.io.FileNotFoundException: /opt/qubership/profiler/lib/... (Permission denied)`
+    
+    **Solution**: Ensure the user running the Java process has read permissions:
+    ```bash
+    sudo chmod -R a+r /opt/qubership/profiler
+    ```
+  </Accordion>
+
+  <Accordion title="Java version mismatch">
+    **Error**: `Unsupported major.minor version` or class loading errors
+    
+    **Solution**: Ensure you're using Java 17 or higher. Check your Java version:
+    ```bash
+    java -version
+    ```
+  </Accordion>
+
+  <Accordion title="Multiple agents conflict">
+    **Error**: Warnings about duplicate agent initialization
+    
+    **Solution**: Only specify the `-javaagent` flag once. If you need multiple agents, list them separately:
+    ```bash
+    java -javaagent:/path/to/agent1.jar -javaagent:/path/to/agent2.jar -jar app.jar
+    ```
+  </Accordion>
+</AccordionGroup>
+
+For more troubleshooting help, see the [Troubleshooting Guide](/operations/troubleshooting).

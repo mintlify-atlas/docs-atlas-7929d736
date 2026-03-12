@@ -1,0 +1,585 @@
+---
+title: 'Configuration'
+description: 'Configuration options and settings for the Qubership Profiler Agent'
+icon: 'gear'
+---
+
+The Qubership Profiler Agent is configured through XML files and system properties. This guide covers all available configuration options.
+
+## Configuration Files
+
+The agent uses an XML-based configuration system with support for includes and overrides.
+
+### Primary Configuration File
+
+The main configuration file is typically located at `config/_config.xml`:
+
+```xml _config.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<profiler-configuration>
+    <log-retention max-age="8 days" max-size="2 Gb"/>
+    
+    <parameters>
+        <parameter name="jmeter.step" index="true" list="true" order="50"/>
+        <parameter name="call.red" index="true" list="false" order="500"/>
+        <parameter name="call.idle" index="true" list="false" order="700"/>
+    </parameters>
+    
+    <ruleset>
+        <rule>
+            <class>com.netcracker.profiler.**</class>
+            <do-not-profile/>
+        </rule>
+    </ruleset>
+    
+    <ruleset>
+        <rule src="_config.filters.xml"/>
+    </ruleset>
+</profiler-configuration>
+```
+
+### Configuration Overrides
+
+You can override configurations using `.override.xml` files. The agent will automatically load `_config.override.xml` if it exists alongside `_config.xml`.
+
+```xml _config.override.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<profiler-configuration>
+    <log-retention max-age="30 days" max-size="10 Gb"/>
+</profiler-configuration>
+```
+
+### Configuration Includes
+
+Include external configuration files or directories:
+
+```xml
+<ruleset>
+    <rule src="custom-filters.xml"/>
+    <rule src="plugins/"/>  <!-- Include all XML files in directory -->
+</ruleset>
+```
+
+## System Properties
+
+Configure the agent using JVM system properties:
+
+<ParamField path="profiler.home" type="string" required>
+  Base directory for the profiler installation. Contains the `config/` subdirectory.
+  
+  ```bash
+  -Dprofiler.home=/opt/qubership/profiler
+  ```
+</ParamField>
+
+<ParamField path="profiler.config" type="string">
+  Absolute path to the configuration XML file. Defaults to `${profiler.home}/config/_config.xml`.
+  
+  ```bash
+  -Dprofiler.config=/etc/profiler/custom-config.xml
+  ```
+</ParamField>
+
+<ParamField path="profiler.dump" type="string">
+  Directory where profiling dumps are written. If not specified, defaults to `${profiler.home}/../profiler/dump/${SERVER_NAME}`.
+  
+  ```bash
+  -Dprofiler.dump=/var/log/profiler/dumps
+  ```
+</ParamField>
+
+<ParamField path="profiler.dump.home" type="string">
+  Alternative to `profiler.dump`. Base directory for dumps without server name suffix.
+  
+  ```bash
+  -Dprofiler.dump.home=/data/dumps
+  ```
+</ParamField>
+
+<ParamField path="com.netcracker.profiler.Profiler.verify-classes" type="boolean" default="false">
+  Enable class verification after transformation for debugging purposes.
+  
+  ```bash
+  -Dcom.netcracker.profiler.Profiler.verify-classes=true
+  ```
+</ParamField>
+
+<ParamField path="com.netcracker.profiler.Dumper.REMOTE_DUMP_DISABLED" type="boolean" default="false">
+  Disable remote dump collection even if REMOTE_DUMP_HOST is configured.
+  
+  ```bash
+  -Dcom.netcracker.profiler.Dumper.REMOTE_DUMP_DISABLED=true
+  ```
+</ParamField>
+
+<ParamField path="execution-statistics-collector.verbose" type="boolean" default="false">
+  Enable verbose logging for troubleshooting.
+  
+  ```bash
+  -Dexecution-statistics-collector.verbose=true
+  ```
+</ParamField>
+
+## Log Retention Configuration
+
+Configure how long profiling dumps are retained:
+
+```xml
+<log-retention max-age="8 days" max-size="2 Gb"/>
+```
+
+<ParamField path="max-age" type="duration" default="8 days">
+  Maximum age of dump files before automatic deletion. Supports units: `days`, `hours`, `minutes`, `seconds`.
+  
+  Examples:
+  - `8 days`
+  - `192 hours`
+  - `30 days`
+</ParamField>
+
+<ParamField path="max-size" type="size" default="2 Gb">
+  Maximum total size of dump directory. Oldest files are deleted when exceeded. Supports units: `Gb`, `Mb`, `Kb`, `bytes`.
+  
+  Examples:
+  - `2 Gb`
+  - `2048 Mb`
+  - `10 Gb`
+</ParamField>
+
+## Parameter Configuration
+
+Define custom parameters to track in profiling data:
+
+```xml
+<parameters>
+    <parameter name="jmeter.step" index="true" list="true" order="50"/>
+    <parameter name="http.url" index="true" list="false" order="100"/>
+    <parameter name="sql.query" index="false" list="false" order="200"/>
+</parameters>
+```
+
+<ParamField path="name" type="string" required>
+  Unique name for the parameter
+</ParamField>
+
+<ParamField path="index" type="boolean" default="false">
+  Whether to index this parameter for faster searching
+</ParamField>
+
+<ParamField path="list" type="boolean" default="false">
+  Whether to allow multiple values for this parameter
+</ParamField>
+
+<ParamField path="order" type="integer">
+  Display order in the UI (lower numbers appear first)
+</ParamField>
+
+## Profiling Rules
+
+Define which classes and methods to profile or exclude:
+
+### Basic Rule Structure
+
+```xml
+<ruleset>
+    <rule>
+        <class>com.example.myapp.**</class>
+        <method>process*</method>
+        <minimum-method-size>50</minimum-method-size>
+    </rule>
+</ruleset>
+```
+
+### Class Matching
+
+```xml
+<!-- Exact class match -->
+<class>com.example.MyClass</class>
+
+<!-- Package wildcard -->
+<class>com.example.**</class>
+
+<!-- Single level wildcard -->
+<class>com.example.*</class>
+
+<!-- Multiple classes -->
+<rule>
+    <class>com.example.Service1</class>
+    <class>com.example.Service2</class>
+</rule>
+```
+
+### Method Matching
+
+```xml
+<!-- Include specific methods -->
+<include-method>processRequest</include-method>
+<include-method>handle*</include-method>
+
+<!-- Exclude specific methods -->
+<exclude-method>toString</exclude-method>
+<exclude-method>get*</exclude-method>
+<exclude-method>set*</exclude-method>
+```
+
+### Method Filters
+
+<ParamField path="minimum-method-size" type="integer">
+  Minimum bytecode size (in bytes) for a method to be profiled
+  
+  ```xml
+  <minimum-method-size>50</minimum-method-size>
+  ```
+</ParamField>
+
+<ParamField path="minimum-method-lines" type="integer">
+  Minimum number of source lines for a method to be profiled
+  
+  ```xml
+  <minimum-method-lines>10</minimum-method-lines>
+  ```
+</ParamField>
+
+<ParamField path="minimum-method-loops" type="integer">
+  Minimum number of loops/back-jumps for a method to be profiled
+  
+  ```xml
+  <minimum-method-loops>1</minimum-method-loops>
+  ```
+</ParamField>
+
+### Excluding Classes from Profiling
+
+```xml
+<ruleset>
+    <rule>
+        <class>com.netcracker.profiler.**</class>
+        <do-not-profile/>
+    </rule>
+    <rule>
+        <class>org.springframework.**</class>
+        <do-not-profile/>
+    </rule>
+</ruleset>
+```
+
+### Conditional Rules
+
+Use conditional attributes to enable rules based on system properties:
+
+```xml
+<!-- Enable only if property is true -->
+<rule if="profiler.debug">
+    <class>com.example.**</class>
+</rule>
+
+<!-- Enable only if property is false or not set -->
+<rule unless="profiler.production">
+    <class>com.example.test.**</class>
+</rule>
+
+<!-- Enable only if property exists -->
+<rule if-exists="enable.detailed.profiling">
+    <class>com.example.critical.**</class>
+    <minimum-method-size>1</minimum-method-size>
+</rule>
+
+<!-- Enable only if property doesn't exist -->
+<rule unless-exists="disable.profiling">
+    <class>com.example.**</class>
+</rule>
+```
+
+## Enhancers (Plugins)
+
+Enable instrumentation plugins for specific frameworks:
+
+```xml
+<enhancer>activemq</enhancer>
+<enhancer>spring</enhancer>
+<enhancer>hibernate</enhancer>
+<enhancer>jdbc</enhancer>
+```
+
+### Available Enhancers
+
+- `activemq` - ActiveMQ messaging
+- `spring` - Spring Framework
+- `springrest` - Spring REST controllers
+- `hibernate` - Hibernate ORM
+- `jdbc` - JDBC database calls
+- `cassandra` - Cassandra database
+- `elasticsearch` - Elasticsearch
+- `rabbitmq` - RabbitMQ messaging
+- `http` - HTTP client calls
+- `log4j` - Log4j integration
+
+See the [plugins documentation](/plugins/overview) for a complete list.
+
+## Metrics Collection
+
+Configure custom metrics collection:
+
+```xml
+<metrics-collection outputVersion="2">
+    <call-type name="http.requests" is-custom="true">
+        <matching class="com.example.HttpController" method="handleRequest"/>
+        <aggregation-params>
+            <param>http.method</param>
+            <param>http.url</param>
+        </aggregation-params>
+        <metrics>
+            <count name="request.count"/>
+            <duration name="request.duration" unit="ms"/>
+        </metrics>
+    </call-type>
+</metrics-collection>
+```
+
+### Metrics Types
+
+<ParamField path="count" type="metric">
+  Count the number of invocations
+  
+  ```xml
+  <count name="request.count"/>
+  ```
+</ParamField>
+
+<ParamField path="duration" type="metric">
+  Measure execution duration
+  
+  ```xml
+  <duration name="execution.time" unit="ms"/>
+  ```
+</ParamField>
+
+<ParamField path="gauge" type="metric">
+  Track a numeric value
+  
+  ```xml
+  <gauge name="queue.size"/>
+  ```
+</ParamField>
+
+## Call Export (Remote Collection)
+
+Configure real-time export of profiling data to a remote collector:
+
+```xml
+<call-export>
+    <host>profiler-collector.example.com</host>
+    <port>9090</port>
+    <socket-timeout>5000</socket-timeout>
+    
+    <include-params>
+        <include-param>http.url</include-param>
+        <include-param>sql.query</include-param>
+    </include-params>
+    
+    <exclude-params>
+        <exclude-param>password</exclude-param>
+        <exclude-param>secret</exclude-param>
+    </exclude-params>
+    
+    <system-properties>
+        <property>java.version</property>
+        <property>os.name</property>
+    </system-properties>
+</call-export>
+```
+
+<ParamField path="host" type="string" required>
+  Hostname or IP address of the remote collector
+</ParamField>
+
+<ParamField path="port" type="integer" required>
+  Port number for the remote collector
+</ParamField>
+
+<ParamField path="socket-timeout" type="integer" default="5000">
+  Socket timeout in milliseconds
+</ParamField>
+
+## Storing Transformed Classes
+
+For debugging, store transformed class bytecode:
+
+```xml
+<store-transformed-classes/>
+```
+
+This stores classes in `${profiler.dump}/classes/` by default. You can specify a custom path:
+
+```xml
+<store-transformed-classes>/tmp/profiler-classes</store-transformed-classes>
+```
+
+## Class Verification
+
+Enable bytecode verification after transformation:
+
+```xml
+<verify-classes/>
+<!-- or -->
+<verify-classes>true</verify-classes>
+```
+
+Can also be enabled via system property:
+
+```bash
+-Dcom.netcracker.profiler.Profiler.verify-classes=true
+```
+
+## Custom Properties
+
+Define custom properties accessible to instrumentation code:
+
+```xml
+<properties>
+    <property name="custom.threshold" value="100"/>
+    <property name="custom.enabled" value="true"/>
+    <property name="custom.endpoints">
+        <value>http://endpoint1.example.com</value>
+        <value>http://endpoint2.example.com</value>
+    </property>
+</properties>
+```
+
+## Configuration Examples
+
+### Minimal Configuration
+
+```xml _config.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<profiler-configuration>
+    <log-retention max-age="7 days" max-size="1 Gb"/>
+    
+    <ruleset>
+        <rule>
+            <class>com.netcracker.profiler.**</class>
+            <do-not-profile/>
+        </rule>
+    </ruleset>
+</profiler-configuration>
+```
+
+### Production Configuration
+
+```xml _config.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<profiler-configuration>
+    <log-retention max-age="30 days" max-size="10 Gb"/>
+    
+    <parameters>
+        <parameter name="http.url" index="true" list="false" order="100"/>
+        <parameter name="http.method" index="true" list="false" order="110"/>
+        <parameter name="sql.query" index="false" list="false" order="200"/>
+        <parameter name="error.message" index="true" list="false" order="500"/>
+    </parameters>
+    
+    <enhancer>spring</enhancer>
+    <enhancer>jdbc</enhancer>
+    <enhancer>http</enhancer>
+    
+    <ruleset>
+        <!-- Exclude profiler itself -->
+        <rule>
+            <class>com.netcracker.profiler.**</class>
+            <do-not-profile/>
+        </rule>
+        
+        <!-- Exclude frameworks -->
+        <rule>
+            <class>org.springframework.**</class>
+            <do-not-profile/>
+        </rule>
+        <rule>
+            <class>org.hibernate.**</class>
+            <do-not-profile/>
+        </rule>
+        
+        <!-- Profile application code -->
+        <rule>
+            <class>com.example.myapp.**</class>
+            <exclude-method>get*</exclude-method>
+            <exclude-method>set*</exclude-method>
+            <exclude-method>toString</exclude-method>
+            <minimum-method-size>20</minimum-method-size>
+        </rule>
+    </ruleset>
+    
+    <call-export>
+        <host>profiler-collector.internal</host>
+        <port>9090</port>
+        <include-params>
+            <include-param>http.url</include-param>
+            <include-param>http.method</include-param>
+        </include-params>
+        <exclude-params>
+            <exclude-param>password</exclude-param>
+            <exclude-param>token</exclude-param>
+            <exclude-param>secret</exclude-param>
+        </exclude-params>
+    </call-export>
+</profiler-configuration>
+```
+
+### Development Configuration
+
+```xml _config.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<profiler-configuration>
+    <store-transformed-classes/>
+    <verify-classes>true</verify-classes>
+    <log-retention max-age="2 days" max-size="500 Mb"/>
+    
+    <parameters>
+        <parameter name="debug.info" index="true" list="true" order="50"/>
+    </parameters>
+    
+    <enhancer>spring</enhancer>
+    <enhancer>jdbc</enhancer>
+    
+    <ruleset>
+        <rule>
+            <class>com.netcracker.profiler.**</class>
+            <do-not-profile/>
+        </rule>
+        
+        <!-- Profile everything in application -->
+        <rule>
+            <class>com.example.**</class>
+            <minimum-method-size>1</minimum-method-size>
+        </rule>
+    </ruleset>
+</profiler-configuration>
+```
+
+## Configuration Validation
+
+The agent validates configuration on startup. Check logs for errors:
+
+```
+Profiler: Loading configuration from /opt/qubership/profiler/config/_config.xml
+Profiler: Parsing file /opt/qubership/profiler/config/_config.xml
+Profiler: initialized, version 3.1.3-SNAPSHOT
+```
+
+Common validation errors:
+
+- **Missing required attributes**: Ensure all required attributes are specified
+- **Invalid XML syntax**: Validate XML structure and proper closing tags
+- **Invalid values**: Check that numeric values are valid and units are recognized
+- **Missing referenced files**: Verify that included configuration files exist
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Agent Setup" icon="plug" href="/setup/agent-setup">
+    Learn how to attach the agent to applications
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/setup/deployment">
+    Production deployment best practices
+  </Card>
+</CardGroup>

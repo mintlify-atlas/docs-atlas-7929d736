@@ -1,0 +1,830 @@
+---
+title: Troubleshooting
+description: Common issues and solutions for the Qubership Profiler Agent
+---
+
+## Overview
+
+This guide covers common issues you may encounter when using the Qubership Profiler Agent, along with diagnostic steps and solutions.
+
+## Agent Attachment Issues
+
+<AccordionGroup>
+  <Accordion title="Agent fails to attach to JVM">
+    **Symptoms:**
+    - Application starts but no profiler logs appear
+    - Agent initialization messages missing from logs
+    - No trace files being created
+    
+    **Diagnostic Steps:**
+    
+    ```bash
+    # Check if agent is in JVM arguments
+    ps aux | grep javaagent | grep profiler-agent
+    
+    # Verify agent JAR exists
+    ls -l /path/to/profiler-agent.jar
+    
+    # Check file permissions
+    ls -la /path/to/profiler-agent.jar
+    ```
+    
+    **Solutions:**
+    
+    <Tabs>
+      <Tab title="Missing Agent Argument">
+        Add the `-javaagent` argument to JVM startup:
+        
+        ```bash
+        java -javaagent:/path/to/profiler-agent.jar \
+          -jar your-app.jar
+        ```
+        
+        For Kubernetes:
+        ```yaml
+        env:
+        - name: JAVA_TOOL_OPTIONS
+          value: "-javaagent:/opt/profiler/profiler-agent.jar"
+        ```
+      </Tab>
+      
+      <Tab title="File Not Found">
+        Verify the agent JAR is mounted correctly:
+        
+        ```yaml
+        volumeMounts:
+        - name: profiler-agent
+          mountPath: /opt/profiler
+        
+        volumes:
+        - name: profiler-agent
+          configMap:
+            name: profiler-agent-jar
+        ```
+        
+        Or use an init container to download it:
+        ```yaml
+        initContainers:
+        - name: download-agent
+          image: busybox
+          command:
+          - sh
+          - -c
+          - |
+            wget -O /agent/profiler-agent.jar \
+              http://artifact-repo/profiler-agent.jar
+          volumeMounts:
+          - name: agent-volume
+            mountPath: /agent
+        ```
+      </Tab>
+      
+      <Tab title="Permission Denied">
+        Fix file permissions:
+        
+        ```bash
+        chmod 644 /path/to/profiler-agent.jar
+        chown app:app /path/to/profiler-agent.jar
+        ```
+        
+        In Dockerfile:
+        ```dockerfile
+        COPY --chown=app:app profiler-agent.jar /opt/profiler/
+        RUN chmod 644 /opt/profiler/profiler-agent.jar
+        ```
+      </Tab>
+    </Tabs>
+  </Accordion>
+  
+  <Accordion title="Agent attached but not collecting data">
+    **Symptoms:**
+    - Agent initialization successful
+    - No trace files or empty dump directories
+    - Application running normally
+    
+    **Diagnostic Steps:**
+    
+    ```bash
+    # Check dump directory exists
+    ls -la /path/to/dump/root
+    
+    # Check disk space
+    df -h /path/to/dump/root
+    
+    # Check agent configuration
+    grep -i profiler /path/to/app/config/*.properties
+    
+    # Check for errors in application logs
+    grep -i "profiler.*error" /var/log/app.log
+    ```
+    
+    **Solutions:**
+    
+    1. **Create dump directory:**
+       ```bash
+       mkdir -p /path/to/dump/root
+       chmod 755 /path/to/dump/root
+       chown app:app /path/to/dump/root
+       ```
+    
+    2. **Check profiling is enabled:**
+       ```properties
+       # In profiler configuration
+       profiler.enabled=true
+       profiler.trace.enabled=true
+       ```
+    
+    3. **Verify slow request threshold:**
+       ```properties
+       # Lower threshold to capture more requests
+       profiler.slow.threshold=100
+       ```
+    
+    4. **Check if requests are reaching the threshold:**
+       - Generate load on the application
+       - Verify requests are slower than threshold
+  </Accordion>
+  
+  <Accordion title="ClassNotFoundException or NoClassDefFoundError">
+    **Symptoms:**
+    - Agent fails to start with class loading errors
+    - Stack traces mentioning profiler classes
+    
+    **Diagnostic Steps:**
+    
+    ```bash
+    # Verify agent JAR is not corrupted
+    jar tf profiler-agent.jar | grep -i manifest
+    
+    # Check JAR contents
+    unzip -l profiler-agent.jar | head -20
+    ```
+    
+    **Solutions:**
+    
+    1. **Re-download agent JAR:**
+       ```bash
+       wget -O profiler-agent.jar \
+         https://releases.example.com/profiler-agent-latest.jar
+       ```
+    
+    2. **Verify JAR integrity:**
+       ```bash
+       sha256sum profiler-agent.jar
+       # Compare with published checksum
+       ```
+    
+    3. **Check Java version compatibility:**
+       ```bash
+       # Agent requires Java 8+
+       java -version
+       ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Data Collection Issues
+
+<AccordionGroup>
+  <Accordion title="No trace files being created">
+    **Symptoms:**
+    - Dump directory exists but no trace files
+    - Empty trace folders
+    
+    **Diagnostic Steps:**
+    
+    ```bash
+    # Check for ANY files in dump directory
+    find /path/to/dump/root -type f | head -20
+    
+    # Check trace directory permissions
+    ls -la /path/to/dump/root/*/trace/
+    
+    # Monitor file creation
+    watch -n 5 'find /path/to/dump/root -type f -mmin -5'
+    ```
+    
+    **Common Causes:**
+    
+    <Tabs>
+      <Tab title="No Slow Requests">
+        No requests are exceeding the slow threshold.
+        
+        **Solution:** Lower the threshold temporarily:
+        ```properties
+        profiler.slow.threshold=10
+        ```
+        
+        Or enable sampling:
+        ```properties
+        profiler.sampling.enabled=true
+        profiler.sampling.rate=0.1  # 10% of requests
+        ```
+      </Tab>
+      
+      <Tab title="Write Permissions">
+        Agent cannot write to dump directory.
+        
+        **Solution:**
+        ```bash
+        # Fix permissions
+        chown -R app:app /path/to/dump/root
+        chmod -R 755 /path/to/dump/root
+        
+        # For Kubernetes, check security context
+        kubectl describe pod my-app | grep -A 5 "Security Context"
+        ```
+      </Tab>
+      
+      <Tab title="Disk Full">
+        No disk space available.
+        
+        **Solution:**
+        ```bash
+        # Check disk usage
+        df -h /path/to/dump/root
+        
+        # Clean old dumps
+        find /path/to/dump/root -type f -mtime +7 -delete
+        
+        # Or export and remove
+        java -jar esc-cli.jar export-dump \
+          -s "7days" \
+          archive.zip
+        rm -rf /path/to/dump/root/$(date -d '7 days ago' +%Y/%m/%d)
+        ```
+      </Tab>
+    </Tabs>
+  </Accordion>
+  
+  <Accordion title="Trace files created but empty or corrupted">
+    **Symptoms:**
+    - Zero-byte trace files
+    - Cannot read trace files with CLI tools
+    - Errors when exporting dumps
+    
+    **Diagnostic Steps:**
+    
+    ```bash
+    # Find zero-byte files
+    find /path/to/dump/root -name "*.gz" -size 0
+    
+    # Try to decompress a trace file
+    gunzip -t /path/to/dump/root/server/2026/03/12/*/trace/*.gz
+    
+    # Check file creation timestamps
+    stat /path/to/dump/root/server/2026/03/12/*/trace/*.gz
+    ```
+    
+    **Solutions:**
+    
+    1. **Filesystem issues:**
+       ```bash
+       # Check filesystem errors
+       dmesg | grep -i error | tail -20
+       
+       # Run filesystem check (requires unmount)
+       fsck /dev/sda1
+       ```
+    
+    2. **Application crash during write:**
+       - Check for JVM crashes: `ls -la hs_err_pid*.log`
+       - Review application crash logs
+       - Increase JVM heap if OOM errors
+    
+    3. **Concurrent write issues:**
+       - Verify only one agent instance per dump directory
+       - Check for NFS locking issues if using network storage
+  </Accordion>
+  
+  <Accordion title="Missing SQL queries in traces">
+    **Symptoms:**
+    - Traces show database calls but no SQL text
+    - SQL folder empty or missing
+    
+    **Diagnostic Steps:**
+    
+    ```bash
+    # Check SQL folder
+    ls -la /path/to/dump/root/*/sql/
+    
+    # Check if SQL capture is enabled
+    grep -i "sql" /path/to/profiler/config.properties
+    ```
+    
+    **Solutions:**
+    
+    1. **Enable SQL capture:**
+       ```properties
+       profiler.sql.enabled=true
+       profiler.sql.params.enabled=true
+       ```
+    
+    2. **Check JDBC driver instrumentation:**
+       - Verify supported driver version
+       - Check driver plugin is loaded
+    
+    3. **Increase SQL threshold:**
+       ```properties
+       # Capture all SQL queries
+       profiler.sql.threshold=0
+       ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Performance Issues
+
+<AccordionGroup>
+  <Accordion title="High CPU usage after enabling agent">
+    **Symptoms:**
+    - CPU usage increases significantly (>10%)
+    - Application slowdown
+    - Increased response times
+    
+    **Diagnostic Steps:**
+    
+    ```bash
+    # Check CPU usage
+    top -p $(pgrep -f your-app)
+    
+    # Profile the JVM
+    jstack <pid> > thread-dump.txt
+    
+    # Check for profiler threads
+    grep -i profiler thread-dump.txt
+    ```
+    
+    **Solutions:**
+    
+    <Tabs>
+      <Tab title="Reduce Sampling">
+        Lower the profiling overhead:
+        
+        ```properties
+        # Increase slow threshold
+        profiler.slow.threshold=5000
+        
+        # Reduce sampling rate
+        profiler.sampling.rate=0.01  # 1% instead of 10%
+        
+        # Disable detailed profiling
+        profiler.trace.stacktraces=false
+        ```
+      </Tab>
+      
+      <Tab title="Disable Specific Plugins">
+        Disable expensive instrumentation:
+        
+        ```properties
+        # Disable SQL parameter capture
+        profiler.sql.params.enabled=false
+        
+        # Disable specific frameworks
+        profiler.plugins.cassandra.enabled=false
+        profiler.plugins.elasticsearch.enabled=false
+        ```
+      </Tab>
+      
+      <Tab title="Adjust Flush Interval">
+        Reduce write frequency:
+        
+        ```properties
+        # Flush less frequently (default: 5000ms)
+        profiler.flush.interval=10000
+        
+        # Increase buffer size
+        profiler.buffer.size=16384
+        ```
+      </Tab>
+    </Tabs>
+  </Accordion>
+  
+  <Accordion title="Increased memory usage">
+    **Symptoms:**
+    - Heap usage increases
+    - More frequent GC
+    - OutOfMemoryError
+    
+    **Diagnostic Steps:**
+    
+    ```bash
+    # Monitor heap usage
+    jstat -gcutil <pid> 1000 10
+    
+    # Collect heap dump
+    diagtools heap zip
+    
+    # Analyze heap dump
+    jmap -histo <pid> | head -30
+    ```
+    
+    **Solutions:**
+    
+    1. **Increase JVM heap:**
+       ```bash
+       java -Xmx4g -Xms2g -javaagent:profiler-agent.jar -jar app.jar
+       ```
+    
+    2. **Reduce profiler memory usage:**
+       ```properties
+       # Reduce trace retention
+       profiler.trace.retention.size=1000
+       
+       # Disable dictionary caching
+       profiler.dictionary.cache.enabled=false
+       
+       # Reduce buffer sizes
+       profiler.buffer.size=8192
+       ```
+    
+    3. **Analyze for memory leaks:**
+       - Use heap dump analysis tools (Eclipse MAT, VisualVM)
+       - Look for growing collections
+       - Check for unclosed resources
+  </Accordion>
+  
+  <Accordion title="Disk I/O bottleneck">
+    **Symptoms:**
+    - High disk wait time
+    - Slow application performance
+    - Trace writes blocking application
+    
+    **Diagnostic Steps:**
+    
+    ```bash
+    # Check I/O wait
+    iostat -x 5 3
+    
+    # Monitor disk usage
+    iotop -p <pid>
+    
+    # Check dump directory I/O
+    lsof -p <pid> | grep dump
+    ```
+    
+    **Solutions:**
+    
+    1. **Use faster storage:**
+       - Move dump directory to SSD
+       - Use local storage instead of network filesystem
+    
+    2. **Optimize write patterns:**
+       ```properties
+       # Increase flush interval
+       profiler.flush.interval=10000
+       
+       # Enable async writes
+       profiler.async.writes=true
+       ```
+    
+    3. **Reduce data volume:**
+       ```properties
+       # Increase slow threshold
+       profiler.slow.threshold=1000
+       
+       # Disable trace details
+       profiler.trace.stacktraces=false
+       ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Diagtools Issues
+
+<AccordionGroup>
+  <Accordion title="diagtools cannot collect heap dump">
+    **Symptoms:**
+    - `jmap` fails with "Unable to attach"
+    - Permission denied errors
+    - Heap dump command hangs
+    
+    **Diagnostic Steps:**
+    
+    ```bash
+    # Check Java process
+    ps aux | grep java
+    
+    # Check permissions
+    ls -l /proc/<pid>/
+    
+    # Check ptrace settings
+    cat /proc/sys/kernel/yama/ptrace_scope
+    ```
+    
+    **Solutions:**
+    
+    <Tabs>
+      <Tab title="Permission Issues">
+        Run diagtools as the same user as the Java process:
+        
+        ```bash
+        # Find Java process user
+        ps -o user= -p <pid>
+        
+        # Run as that user
+        sudo -u appuser diagtools heap zip
+        ```
+        
+        For Kubernetes:
+        ```yaml
+        containers:
+        - name: diagtools
+          securityContext:
+            runAsUser: 1000  # Same as app container
+            capabilities:
+              add:
+              - SYS_PTRACE
+        ```
+      </Tab>
+      
+      <Tab title="ptrace Restrictions">
+        Adjust ptrace scope (requires root):
+        
+        ```bash
+        # Allow ptrace for same-user processes
+        echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+        
+        # Persist across reboots
+        echo "kernel.yama.ptrace_scope = 0" | \
+          sudo tee -a /etc/sysctl.conf
+        ```
+      </Tab>
+      
+      <Tab title="Container Capabilities">
+        Add required capabilities:
+        
+        ```yaml
+        apiVersion: v1
+        kind: Pod
+        spec:
+          containers:
+          - name: diagtools
+            securityContext:
+              capabilities:
+                add:
+                - SYS_PTRACE
+                - SYS_ADMIN
+        ```
+      </Tab>
+    </Tabs>
+  </Accordion>
+  
+  <Accordion title="diagtools schedule not running">
+    **Symptoms:**
+    - No thread dumps being created
+    - Schedule command exits immediately
+    - No periodic collection
+    
+    **Diagnostic Steps:**
+    
+    ```bash
+    # Check if schedule is running
+    ps aux | grep "diagtools schedule"
+    
+    # Check environment variables
+    env | grep DIAGNOSTIC
+    
+    # Check logs
+    tail -f /tmp/diagnostic/log/diagtools_schedule.log
+    ```
+    
+    **Solutions:**
+    
+    1. **Enable collection:**
+       ```bash
+       export NC_DIAGNOSTIC_THREADDUMP_ENABLED=true
+       export NC_DIAGNOSTIC_TOP_ENABLED=true
+       diagtools schedule
+       ```
+    
+    2. **Fix interval settings:**
+       ```bash
+       export DIAGNOSTIC_DUMP_INTERVAL=5m
+       export DIAGNOSTIC_SCAN_INTERVAL=10m
+       diagtools schedule
+       ```
+    
+    3. **Run in foreground for debugging:**
+       ```bash
+       export LOG_TO_CONSOLE=true
+       diagtools schedule
+       ```
+  </Accordion>
+  
+  <Accordion title="Upload to collector fails">
+    **Symptoms:**
+    - "Connection refused" errors
+    - "Upload request failed" in logs
+    - Files not appearing in collector
+    
+    **Diagnostic Steps:**
+    
+    ```bash
+    # Test collector connectivity
+    curl -v http://nc-diagnostic-agent:8080/health
+    
+    # Check environment variables
+    echo $NC_DIAGNOSTIC_AGENT_SERVICE
+    echo $TLS_ENABLED
+    
+    # Check DNS resolution
+    nslookup nc-diagnostic-agent
+    ```
+    
+    **Solutions:**
+    
+    1. **Fix service name:**
+       ```bash
+       export NC_DIAGNOSTIC_AGENT_SERVICE=nc-diagnostic-agent.default.svc.cluster.local
+       ```
+    
+    2. **Enable TLS if needed:**
+       ```bash
+       export TLS_ENABLED=true
+       export NC_DIAGNOSTIC_AGENT_SERVICE=https://nc-diagnostic-agent:8443
+       ```
+    
+    3. **Increase upload timeout:**
+       ```bash
+       export DIAGNOSTIC_UPLOAD_TIMEOUT=10m
+       diagtools heap zip upload
+       ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## CLI Tools Issues
+
+<AccordionGroup>
+  <Accordion title="export-dump fails with 'No files found'">
+    **Symptoms:**
+    - Export completes but finds 0 files
+    - Dry-run shows no matching data
+    
+    **Diagnostic Steps:**
+    
+    ```bash
+    # List servers
+    java -jar esc-cli.jar list-servers -r /path/to/dump/root
+    
+    # Check dump structure
+    ls -R /path/to/dump/root | head -50
+    
+    # Try dry-run with verbose
+    java -jar esc-cli.jar export-dump \
+      -v -v \
+      -d \
+      -s "24hour" \
+      test.zip
+    ```
+    
+    **Solutions:**
+    
+    1. **Verify dump-root path:**
+       ```bash
+       # Should point to the 'default' folder
+       java -jar esc-cli.jar export-dump \
+         -r /path/to/execution-statistics-collector/dump/default \
+         output.zip
+       ```
+    
+    2. **Check time range:**
+       ```bash
+       # Use wider time range
+       java -jar esc-cli.jar export-dump \
+         -s "7days" \
+         -e "now" \
+         output.zip
+       ```
+    
+    3. **Verify server names:**
+       ```bash
+       # Export specific servers
+       java -jar esc-cli.jar export-dump \
+         -n $(java -jar esc-cli.jar list-servers -r /dump | \
+              grep Server | head -1 | awk '{print $2}') \
+         output.zip
+       ```
+  </Accordion>
+  
+  <Accordion title="download-dump connection failures">
+    **Symptoms:**
+    - SSH connection refused
+    - Authentication failures
+    - Timeout errors
+    
+    **Diagnostic Steps:**
+    
+    ```bash
+    # Test SSH manually
+    ssh user@remote-host
+    
+    # Test with verbose
+    ssh -v user@remote-host
+    
+    # Check network connectivity
+    ping remote-host
+    telnet remote-host 22
+    ```
+    
+    **Solutions:**
+    
+    1. **Fix authentication:**
+       ```bash
+       # Use password prompt
+       java -jar esc-cli.jar download-dump \
+         -rh host \
+         -u user \
+         ./output
+       # Enter password when prompted
+       
+       # Or use SSH keys
+       ssh-copy-id user@host
+       java -jar esc-cli.jar download-dump \
+         -rh host \
+         -u user \
+         ./output
+       ```
+    
+    2. **Use SCP for restricted environments:**
+       ```bash
+       java -jar esc-cli.jar download-dump \
+         -rh host \
+         -u user \
+         -dp SCP \
+         ./output
+       ```
+    
+    3. **Handle sudo requirements:**
+       ```bash
+       java -jar esc-cli.jar download-dump \
+         -rh host \
+         -u jenkins \
+         -sh "sudo su - appuser" \
+         ./output
+       ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Getting Help
+
+### Collect Diagnostic Information
+
+When reporting issues, collect this information:
+
+```bash
+# 1. Java version
+java -version
+
+# 2. Agent version
+jar xf profiler-agent.jar META-INF/MANIFEST.MF
+cat META-INF/MANIFEST.MF | grep Version
+
+# 3. JVM arguments
+ps aux | grep javaagent
+
+# 4. Recent logs
+tail -1000 /var/log/app.log > app-logs.txt
+tail -1000 /tmp/diagnostic/log/*.log > diagtools-logs.txt
+
+# 5. Configuration
+cat /path/to/profiler/config.properties
+
+# 6. Environment
+env | grep -E "PROFILER|DIAGNOSTIC|NC_"
+
+# 7. Dump directory structure
+tree -L 5 /path/to/dump/root
+
+# 8. System info
+uname -a
+df -h
+free -h
+```
+
+### Contact Support
+
+<CardGroup cols={2}>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/Netcracker/qubership-profiler-agent/issues">
+    Report bugs and request features
+  </Card>
+  
+  <Card title="Documentation" icon="book">
+    Review the full documentation for additional guidance
+  </Card>
+</CardGroup>
+
+---
+
+## See Also
+
+- [Monitoring](/operations/monitoring) - Proactive monitoring to prevent issues
+- [CLI Tools](/operations/cli-tools) - Command-line tools reference
+- [Diagnostic Tools](/operations/diagnostic-tools) - Diagtools reference

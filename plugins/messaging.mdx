@@ -1,0 +1,443 @@
+---
+title: Messaging Plugins
+description: Message queue instrumentation plugins for ActiveMQ, RabbitMQ, and HornetQ
+---
+
+## Overview
+
+The Qubership Profiler Agent provides comprehensive instrumentation for popular message queue systems. These plugins capture message sending, receiving, processing times, and errors to give you complete visibility into asynchronous messaging operations.
+
+## Available Messaging Plugins
+
+<CardGroup cols={2}>
+  <Card title="ActiveMQ" icon="message">
+    Apache ActiveMQ JMS broker instrumentation
+  </Card>
+  <Card title="RabbitMQ" icon="message">
+    RabbitMQ AMQP messaging instrumentation
+  </Card>
+  <Card title="HornetQ" icon="message">
+    HornetQ/JBoss messaging instrumentation
+  </Card>
+</CardGroup>
+
+## ActiveMQ Plugin
+
+**Module**: `plugins:activemq`
+
+**Description**: Instruments Apache ActiveMQ, the popular open-source JMS (Java Message Service) message broker.
+
+**Configuration**: `config/minimal/50main/activemq.xml`
+
+### Capabilities
+
+<Tabs>
+  <Tab title="Message Production">
+    - Message sending to queues and topics
+    - Message properties and headers
+    - Persistent and non-persistent messages
+    - Message priority
+    - Time-to-live (TTL)
+    - Transaction context
+  </Tab>
+  <Tab title="Message Consumption">
+    - Synchronous message receiving
+    - Asynchronous message listeners
+    - Message acknowledgment
+    - Redelivery tracking
+    - Consumer groups
+    - Message selectors
+  </Tab>
+  <Tab title="JMS Operations">
+    - Queue and topic creation
+    - Connection management
+    - Session lifecycle
+    - Transaction boundaries
+    - Request-reply patterns
+    - Temporary destinations
+  </Tab>
+  <Tab title="Performance">
+    - Message send/receive timing
+    - Queue depth monitoring
+    - Consumer lag tracking
+    - Throughput metrics
+    - Error rates
+  </Tab>
+</Tabs>
+
+### What's Captured
+
+| Data Point | Description |
+|------------|-------------|
+| Destination | Queue or topic name |
+| Message ID | Unique message identifier |
+| Correlation ID | For request-reply correlation |
+| Message Properties | Custom headers and properties |
+| Message Body | Payload (configurable) |
+| Timing | Send, receive, and processing times |
+| Transaction Context | JTA/local transaction info |
+| Error Details | Exception and stack traces |
+
+### ActiveMQ Features
+
+#### JMS 1.1 and 2.0 Support
+
+The plugin supports both JMS API versions:
+
+- Classic JMS 1.1 API
+- Simplified JMS 2.0 API
+- Auto-detection of API version
+
+#### Message Patterns
+
+<AccordionGroup>
+  <Accordion title="Point-to-Point (Queues)">
+    Monitor queue-based messaging:
+    - Single consumer per message
+    - Message persistence
+    - Load balancing across consumers
+    - Dead letter queue handling
+  </Accordion>
+  
+  <Accordion title="Publish-Subscribe (Topics)">
+    Track topic-based messaging:
+    - Multiple subscribers per message
+    - Durable and non-durable subscriptions
+    - Topic hierarchy
+    - Message fanout
+  </Accordion>
+  
+  <Accordion title="Request-Reply">
+    Instrument synchronous RPC over JMS:
+    - Temporary reply queues
+    - Correlation ID tracking
+    - Timeout handling
+    - Response correlation
+  </Accordion>
+</AccordionGroup>
+
+#### Distributed Tracing Integration
+
+The ActiveMQ plugin supports distributed tracing:
+
+- Propagates trace context in message headers
+- Correlates messages across services
+- Integrates with Brave, Jaeger, and Ocelot plugins
+- End-to-end transaction visibility
+
+## RabbitMQ Plugin
+
+**Module**: `plugins:rabbitmq`
+
+**Description**: Instruments RabbitMQ, the widely-used AMQP message broker.
+
+**Configuration**: `config/minimal/50main/rabbitmq.xml`
+
+### Capabilities
+
+<Tabs>
+  <Tab title="Publishing">
+    - Message publishing to exchanges
+    - Routing keys
+    - Exchange types (direct, topic, fanout, headers)
+    - Message properties
+    - Publisher confirms
+    - Mandatory and immediate flags
+  </Tab>
+  <Tab title="Consuming">
+    - Basic consume operations
+    - Message acknowledgment (auto, manual)
+    - Message rejection and requeue
+    - Consumer tags
+    - Prefetch/QoS settings
+    - Consumer cancellation
+  </Tab>
+  <Tab title="AMQP Protocol">
+    - Channel operations
+    - Connection management
+    - Virtual host usage
+    - Flow control
+    - Heartbeats
+  </Tab>
+  <Tab title="Topology">
+    - Exchange declaration and binding
+    - Queue declaration and binding
+    - Binding keys
+    - Queue properties (durable, exclusive, auto-delete)
+  </Tab>
+</Tabs>
+
+### RabbitMQ-Specific Features
+
+#### Exchange Types
+
+The plugin tracks all RabbitMQ exchange types:
+
+| Exchange Type | Routing Behavior | Instrumentation |
+|---------------|------------------|------------------|
+| **Direct** | Exact routing key match | Route key, queue binding |
+| **Topic** | Pattern matching | Pattern, matched queues |
+| **Fanout** | Broadcast to all queues | All bound queues |
+| **Headers** | Header-based routing | Header values, matches |
+
+#### Message Flow Tracking
+
+- Publisher to exchange
+- Exchange to queue(s) routing
+- Queue to consumer delivery
+- Acknowledgment flow
+- Return path for unroutable messages
+
+#### High Availability
+
+Monitor HA features:
+
+- Mirrored queue operations
+- Cluster node routing
+- Failover events
+- Queue synchronization
+
+### AMQP Client Libraries
+
+The plugin supports:
+
+- RabbitMQ Java client
+- Spring AMQP
+- AMQP 0-9-1 protocol
+
+<Note>
+For Spring applications using RabbitMQ, combine this plugin with the Spring Framework plugin for complete visibility.
+</Note>
+
+## HornetQ Plugin
+
+**Module**: `plugins:hornetq`
+
+**Description**: Instruments HornetQ (now part of ActiveMQ Artemis), the JBoss messaging system.
+
+**Configuration**: `config/minimal/50main/hornetq.xml`
+
+### Capabilities
+
+- JMS message production and consumption
+- HornetQ Core API operations
+- Large message handling
+- Message grouping
+- Scheduled delivery
+- Last-value queues
+
+### HornetQ Features
+
+<AccordionGroup>
+  <Accordion title="Core API">
+    HornetQ provides both JMS and a native Core API:
+    - Direct buffer usage for performance
+    - Zero-copy message transfer
+    - Asynchronous send
+    - Flow control
+  </Accordion>
+  
+  <Accordion title="Large Messages">
+    Special handling for large messages:
+    - Streaming message bodies
+    - File-based storage
+    - Chunked delivery
+    - Memory management
+  </Accordion>
+  
+  <Accordion title="Message Grouping">
+    Ensure ordered processing:
+    - Group ID assignment
+    - Consumer binding
+    - Ordering guarantees
+    - Load balancing within groups
+  </Accordion>
+  
+  <Accordion title="Scheduled Messages">
+    Delayed message delivery:
+    - Schedule time
+    - Delivery delay
+    - Persistent scheduling
+  </Accordion>
+</AccordionGroup>
+
+### JBoss/WildFly Integration
+
+HornetQ is integrated into JBoss/WildFly application servers:
+
+- Resource adapter monitoring
+- MDB (Message-Driven Bean) instrumentation
+- JCA connection management
+- XA transaction support
+
+## Message Correlation
+
+All messaging plugins support message correlation for distributed tracing:
+
+### Correlation Mechanisms
+
+1. **JMS Correlation ID**: Standard JMS correlation identifier
+2. **Trace Headers**: Custom trace context headers
+3. **Message Properties**: User-defined correlation properties
+4. **Transaction ID**: JTA transaction correlation
+
+### Distributed Transactions
+
+The plugins capture distributed transaction context:
+
+- XA transaction ID
+- Two-phase commit operations
+- Transaction timeout
+- Rollback and commit events
+
+## Configuration
+
+Messaging plugins are automatically enabled when the agent detects the message broker client libraries in your application's classpath.
+
+### Customizing Message Instrumentation
+
+```xml
+<profiler-configuration>
+  <ruleset>
+    <rule>
+      <class>org.apache.activemq.ActiveMQSession</class>
+      <method>send</method>
+      <method-editor>ActiveMQSendHandler</method-editor>
+    </rule>
+  </ruleset>
+</profiler-configuration>
+```
+
+### Sensitive Data Handling
+
+<Warning>
+Message bodies may contain sensitive data. Configure the agent to exclude message payloads from capture if needed:
+
+- Enable message header capture only
+- Exclude specific message types
+- Redact sensitive message properties
+- Use separate retention policies for message data
+</Warning>
+
+## Performance Impact
+
+<AccordionGroup>
+  <Accordion title="Low Overhead">
+    Messaging plugins add minimal overhead:
+    - Efficient bytecode instrumentation
+    - Asynchronous event reporting
+    - Minimal memory allocation
+    - Typically &lt;1% throughput impact
+  </Accordion>
+  
+  <Accordion title="Sampling">
+    For high-volume messaging:
+    - Configure sampling rates
+    - Capture slow messages only
+    - Focus on error conditions
+    - Reduce trace volume
+  </Accordion>
+  
+  <Accordion title="Message Body Capture">
+    Message body capture can be disabled for performance:
+    - Capture headers only
+    - Sample message bodies
+    - Limit body size capture
+    - Compress captured data
+  </Accordion>
+</AccordionGroup>
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Async Processing" icon="clock">
+    Monitor asynchronous job processing and background tasks
+  </Card>
+  <Card title="Microservices" icon="network-wired">
+    Track message flow between microservices
+  </Card>
+  <Card title="Event-Driven Architecture" icon="bolt">
+    Monitor event publishing and consumption
+  </Card>
+  <Card title="Integration Patterns" icon="diagram-project">
+    Trace enterprise integration patterns
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Messages Not Being Captured">
+    - Verify the message broker client library is in the classpath
+    - Check that the plugin configuration is present
+    - Ensure the agent is attached with `-javaagent`
+    - Review agent logs for instrumentation errors
+  </Accordion>
+  
+  <Accordion title="Missing Message Correlation">
+    - Verify trace context propagation is enabled
+    - Check message header limits (some brokers limit header size)
+    - Ensure distributed tracing plugins are active
+    - Review correlation ID handling in your code
+  </Accordion>
+  
+  <Accordion title="Performance Degradation">
+    - Enable message body sampling instead of full capture
+    - Increase capture thresholds
+    - Reduce message property capture
+    - Check broker-side performance independently
+  </Accordion>
+  
+  <Accordion title="Transaction Issues">
+    - Verify XA transaction support is enabled
+    - Check transaction manager configuration
+    - Review transaction timeout settings
+    - Ensure JTA libraries are present
+  </Accordion>
+</AccordionGroup>
+
+## Integration with Other Plugins
+
+Messaging plugins work best when combined with other instrumentation:
+
+### Spring Integration
+
+For Spring applications using messaging:
+
+1. Enable the Spring Framework plugin
+2. Enable the appropriate messaging plugin (ActiveMQ, RabbitMQ)
+3. Enable database plugins if message processing involves data access
+
+### Message-Driven Beans (MDB)
+
+For Java EE applications with MDBs:
+
+1. Enable the messaging plugin (ActiveMQ, HornetQ)
+2. Enable the HTTP server plugin if MDBs trigger web requests
+3. Enable database plugins for data layer visibility
+
+### Distributed Tracing
+
+For end-to-end tracing across services:
+
+1. Enable messaging plugins on all services
+2. Enable distributed tracing plugins (Brave, Jaeger, Ocelot)
+3. Configure trace context propagation
+4. Use correlation IDs consistently
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Distributed Tracing" icon="diagram-project" href="/plugins/distributed-tracing">
+    Learn about distributed tracing integration
+  </Card>
+  <Card title="Framework Plugins" icon="layer-group" href="/plugins/frameworks">
+    Explore framework instrumentation
+  </Card>
+  <Card title="Integration Guide" icon="link" href="/integration/distributed-tracing">
+    Set up end-to-end tracing
+  </Card>
+  <Card title="Configuration" icon="gear" href="/setup/configuration">
+    Configure messaging instrumentation
+  </Card>
+</CardGroup>

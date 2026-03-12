@@ -1,0 +1,161 @@
+---
+title: Plugin System Overview
+description: Overview of the Qubership Profiler Agent plugin system and how to enable instrumentation plugins
+---
+
+## Introduction
+
+The Qubership Profiler Agent provides a comprehensive plugin system that allows you to instrument popular Java frameworks, libraries, and technologies. With over 30 plugins available, you can gain deep visibility into your application's behavior without writing custom instrumentation code.
+
+## Available Plugin Categories
+
+<CardGroup cols={2}>
+  <Card title="Database Instrumentation" icon="database" href="/plugins/databases">
+    Plugins for Cassandra, MySQL, PostgreSQL, ElasticSearch, OpenSearch, and Couchbase
+  </Card>
+  <Card title="HTTP Clients" icon="network-wired" href="/plugins/http-clients">
+    Instrumentation for Tomcat, Undertow, Jetty, and Java HTTP Client
+  </Card>
+  <Card title="Frameworks" icon="layer-group" href="/plugins/frameworks">
+    Support for Spring, Apache Felix, Equinox, and Liferay
+  </Card>
+  <Card title="Message Queues" icon="message" href="/plugins/messaging">
+    Plugins for ActiveMQ, RabbitMQ, and HornetQ
+  </Card>
+  <Card title="Distributed Tracing" icon="diagram-project" href="/plugins/distributed-tracing">
+    Integration with Brave (Zipkin), Jaeger, and Ocelot
+  </Card>
+  <Card title="Other Plugins" icon="puzzle-piece">
+    Build tools (ANT), loggers (Log4j), schedulers (Quartz), Jackson, and Rhino
+  </Card>
+</CardGroup>
+
+## How Plugins Work
+
+Plugins use bytecode instrumentation to inject profiling code into your application at runtime. Each plugin:
+
+1. **Identifies target classes** - Plugins specify which classes and methods to instrument
+2. **Injects instrumentation code** - Bytecode is modified to add profiling hooks
+3. **Captures events** - Instrumentation code captures timing, parameters, and errors
+4. **Reports to profiler** - Events are sent to the profiler for analysis
+
+<Note>
+Plugins are loaded automatically by the agent based on configuration files. You don't need to manually enable individual plugins - they activate when the agent detects the corresponding framework or library in your application.
+</Note>
+
+## Plugin Configuration
+
+Each plugin includes configuration files located in the plugin's `src/main/resources/config/minimal/50main/` directory. These XML files define:
+
+- **Instrumentation rules** - Which classes and methods to instrument
+- **Method editors** - How to modify method bytecode
+- **Event handlers** - What data to capture
+- **Thresholds** - Performance thresholds for event capture
+
+### Example Configuration Structure
+
+Plugins typically include configuration files with rulesets like:
+
+```xml
+<profiler-configuration>
+  <ruleset>
+    <rule>
+      <class>com.example.TargetClass</class>
+      <method>targetMethod</method>
+      <method-editor>CustomHandler</method-editor>
+    </rule>
+  </ruleset>
+</profiler-configuration>
+```
+
+## Enabling Plugins
+
+Plugins are automatically enabled when:
+
+1. The profiler agent is attached to your JVM with the `-javaagent` flag
+2. The required framework or library is present in your application's classpath
+3. The plugin configuration files are included in the agent JAR
+
+### Attaching the Agent
+
+To enable plugin instrumentation, attach the agent to your JVM:
+
+```bash
+java -javaagent:/path/to/qubership-profiler-agent.jar \
+     -jar your-application.jar
+```
+
+<Tip>
+You can customize plugin behavior by modifying the configuration files in the agent JAR or by providing external configuration through agent parameters.
+</Tip>
+
+## Plugin Architecture
+
+Each plugin consists of:
+
+- **Instrumentation rules** (XML configuration)
+- **Method editors** (Java classes that modify bytecode)
+- **Runtime handlers** (Code that executes during instrumented method calls)
+- **Dependencies** (Required libraries for instrumentation)
+
+### Plugin Runtime
+
+The plugin runtime (`plugin-runtime` module) provides:
+
+- Base classes for method editors
+- Utilities for bytecode manipulation
+- Event reporting APIs
+- Context management for correlation
+
+## Performance Considerations
+
+<AccordionGroup>
+  <Accordion title="Minimal Overhead">
+    Plugins are designed to have minimal performance impact. Instrumentation code is optimized for speed and only captures data when needed (e.g., for slow requests or errors).
+  </Accordion>
+  
+  <Accordion title="Selective Instrumentation">
+    You can control which plugins are active by removing their configuration files or by using agent configuration to exclude specific packages or classes.
+  </Accordion>
+  
+  <Accordion title="Sampling">
+    The profiler uses intelligent sampling to reduce overhead. Not every request is traced - only those that exceed performance thresholds or result in errors.
+  </Accordion>
+</AccordionGroup>
+
+## Compatibility
+
+Plugins are version-specific to ensure compatibility with the instrumented libraries. Many plugins include multiple versions to support different major releases:
+
+- **Tomcat**: Separate plugins for Tomcat 9.x and earlier (javax.servlet) and 10.x+ (jakarta.servlet)
+- **Undertow**: Separate plugins for versions before 2.3 and 2.3+
+- **Cassandra**: Separate plugins for 3.x and 4.x
+- **Jetty**: Separate plugins for 9.x and earlier and 10.x+
+
+See the [Supported Versions](/reference/supported-versions) reference for detailed version compatibility information.
+
+## Custom Plugins
+
+You can develop custom plugins for frameworks not covered by the built-in plugins. See the [Plugin Development Guide](/development/plugin-development) for details on:
+
+- Creating plugin projects
+- Writing instrumentation rules
+- Implementing method editors
+- Testing and packaging plugins
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Plugins" icon="database" href="/plugins/databases">
+    Learn about database instrumentation plugins
+  </Card>
+  <Card title="HTTP Client Plugins" icon="network-wired" href="/plugins/http-clients">
+    Explore HTTP client and server plugins
+  </Card>
+  <Card title="Framework Plugins" icon="layer-group" href="/plugins/frameworks">
+    Discover framework instrumentation options
+  </Card>
+  <Card title="Plugin Development" icon="code" href="/development/plugin-development">
+    Create your own custom plugins
+  </Card>
+</CardGroup>

@@ -1,0 +1,517 @@
+---
+title: Distributed Tracing Plugins
+description: Distributed tracing integration plugins for Brave (Zipkin), Jaeger, and Ocelot
+---
+
+## Overview
+
+The Qubership Profiler Agent integrates with popular distributed tracing systems to provide end-to-end visibility across microservices and distributed applications. These plugins enable correlation of traces across service boundaries and integration with existing tracing infrastructure.
+
+## Available Tracing Plugins
+
+<CardGroup cols={3}>
+  <Card title="Brave (Zipkin)" icon="diagram-project">
+    OpenZipkin Brave instrumentation library integration
+  </Card>
+  <Card title="Jaeger" icon="diagram-project">
+    Jaeger distributed tracing integration
+  </Card>
+  <Card title="Ocelot" icon="diagram-project">
+    Ocelot tracing framework integration
+  </Card>
+</CardGroup>
+
+## Brave (Zipkin) Plugin
+
+**Module**: `plugins:brave`
+
+**Description**: Integrates with Brave, the Java instrumentation library for Zipkin distributed tracing.
+
+**Configuration**: `config/minimal/50main/brave.xml`
+
+### About Brave and Zipkin
+
+Brave is the official Java tracing library for Zipkin. It provides:
+
+- Automatic context propagation
+- Span creation and management
+- Trace and span ID generation
+- Sampling decisions
+- Reporter integration
+
+### Capabilities
+
+<Tabs>
+  <Tab title="Trace Context">
+    - Trace ID propagation
+    - Span ID generation
+    - Parent-child span relationships
+    - Sampling decisions
+    - Baggage propagation
+    - 128-bit trace IDs
+  </Tab>
+  <Tab title="HTTP Propagation">
+    - B3 header propagation (single and multi-header)
+    - W3C Trace Context support
+    - Custom header formats
+    - Cross-process correlation
+  </Tab>
+  <Tab title="Instrumentation">
+    - HTTP clients and servers
+    - gRPC
+    - Messaging (JMS, Kafka)
+    - Database calls
+    - Custom spans
+  </Tab>
+  <Tab title="Integration">
+    - Zipkin reporter integration
+    - Profiler event correlation
+    - Custom trace exporters
+    - Sampling strategies
+  </Tab>
+</Tabs>
+
+### B3 Propagation
+
+Brave uses the B3 propagation format to pass trace context:
+
+#### Single Header Format
+
+```
+B3: {TraceId}-{SpanId}-{SamplingState}-{ParentSpanId}
+```
+
+#### Multi-Header Format
+
+```
+X-B3-TraceId: {TraceId}
+X-B3-SpanId: {SpanId}
+X-B3-ParentSpanId: {ParentSpanId}
+X-B3-Sampled: {0|1}
+```
+
+### Integration with Profiler
+
+The Brave plugin correlates Zipkin traces with profiler events:
+
+1. **Trace ID Capture**: Profiler captures Brave trace and span IDs
+2. **Event Correlation**: Profiler events include trace context
+3. **Unified View**: Combine Zipkin UI with profiler data
+4. **Sampling Alignment**: Respect Brave sampling decisions
+
+### Configuration Example
+
+```java
+// Brave tracing setup (in your application)
+Tracing tracing = Tracing.newBuilder()
+    .localServiceName("my-service")
+    .spanReporter(zipkinReporter)
+    .sampler(Sampler.ALWAYS_SAMPLE)
+    .build();
+
+// Profiler automatically detects and integrates
+```
+
+<Note>
+The profiler plugin automatically detects Brave in the classpath and enables trace context correlation. No additional configuration is required.
+</Note>
+
+## Jaeger Plugin
+
+**Module**: `plugins:jaeger`
+
+**Description**: Integrates with Jaeger, the open-source distributed tracing platform originally developed by Uber.
+
+**Configuration**: `config/minimal/50main/jaeger.xml`
+
+### About Jaeger
+
+Jaeger is a distributed tracing system that provides:
+
+- Distributed context propagation
+- Distributed transaction monitoring
+- Root cause analysis
+- Service dependency analysis
+- Performance optimization
+
+### Capabilities
+
+<Tabs>
+  <Tab title="Trace Context">
+    - Trace ID propagation (128-bit)
+    - Span ID generation (64-bit)
+    - Span references (ChildOf, FollowsFrom)
+    - Baggage items
+    - Debug mode
+  </Tab>
+  <Tab title="OpenTracing API">
+    - OpenTracing standard compliance
+    - Tracer implementation integration
+    - Span builder API
+    - Scope manager
+    - Active span tracking
+  </Tab>
+  <Tab title="Propagation Formats">
+    - Uber trace context (uber-trace-id)
+    - Jaeger native format
+    - Zipkin B3 format (compatibility)
+    - W3C Trace Context
+    - Custom formats
+  </Tab>
+  <Tab title="Sampling">
+    - Constant sampler
+    - Probabilistic sampler
+    - Rate limiting sampler
+    - Remote sampler (via agent)
+    - Adaptive sampling
+  </Tab>
+</Tabs>
+
+### Jaeger Trace Format
+
+Jaeger uses the `uber-trace-id` header:
+
+```
+uber-trace-id: {trace-id}:{span-id}:{parent-span-id}:{flags}
+```
+
+Example:
+```
+uber-trace-id: 7d7a7b7c7d7e7f80:5b5c5d5e5f606162:1b1c1d1e1f202122:1
+```
+
+### Integration with Profiler
+
+The Jaeger plugin provides:
+
+1. **Trace Context Capture**: Extract Jaeger trace and span IDs
+2. **Baggage Propagation**: Include baggage items in profiler events
+3. **Span Correlation**: Link profiler events to Jaeger spans
+4. **Unified Analysis**: Correlate Jaeger UI with profiler data
+
+### Jaeger Client Configuration
+
+```java
+// Jaeger tracer setup (in your application)
+Tracer tracer = Configuration.fromEnv("my-service")
+    .withSampler(Configuration.SamplerConfiguration.fromEnv()
+        .withType("const")
+        .withParam(1))
+    .withReporter(Configuration.ReporterConfiguration.fromEnv()
+        .withLogSpans(true))
+    .getTracer();
+
+// Profiler automatically integrates
+GlobalTracer.register(tracer);
+```
+
+### OpenTracing Support
+
+Jaeger implements the OpenTracing standard, providing:
+
+- Vendor-neutral API
+- Portable instrumentation
+- Multiple backend support
+- Standard propagation formats
+
+<Note>
+The profiler Jaeger plugin works with any OpenTracing-compatible tracer, not just Jaeger client.
+</Note>
+
+## Ocelot Plugin
+
+**Module**: `plugins:ocelot`
+
+**Description**: Integrates with Ocelot, a specialized tracing framework.
+
+**Configuration**: `config/minimal/50main/ocelot.xml`
+
+### About Ocelot
+
+Ocelot is a tracing framework that provides:
+
+- Lightweight context propagation
+- Custom trace formats
+- Flexible instrumentation
+- Integration with profiling tools
+
+### Capabilities
+
+- Trace context extraction
+- Span correlation
+- Custom header propagation
+- Event annotation
+- Profiler integration
+
+### Ocelot Integration
+
+The Ocelot plugin captures:
+
+- Ocelot trace identifiers
+- Custom trace context
+- Span relationships
+- User-defined metadata
+
+<Note>
+Ocelot is less common than Brave/Zipkin and Jaeger but is included for compatibility with existing Ocelot deployments.
+</Note>
+
+## Choosing a Tracing System
+
+<AccordionGroup>
+  <Accordion title="Brave/Zipkin">
+    **Best For**: Simple, lightweight distributed tracing
+    
+    **Pros**:
+    - Easy to set up and use
+    - Minimal dependencies
+    - Good Spring Cloud integration
+    - Active community
+    
+    **Cons**:
+    - Less feature-rich than Jaeger
+    - Simpler UI and analysis tools
+  </Accordion>
+  
+  <Accordion title="Jaeger">
+    **Best For**: Enterprise-grade distributed tracing with advanced features
+    
+    **Pros**:
+    - Rich feature set
+    - Excellent UI and visualization
+    - Service dependency graphs
+    - Adaptive sampling
+    - Strong backend (Cassandra, Elasticsearch)
+    
+    **Cons**:
+    - More complex setup
+    - Heavier resource usage
+    - Additional infrastructure
+  </Accordion>
+  
+  <Accordion title="Ocelot">
+    **Best For**: Existing Ocelot deployments
+    
+    **Pros**:
+    - Custom integration scenarios
+    - Specialized use cases
+    
+    **Cons**:
+    - Less common
+    - Smaller community
+    - Limited ecosystem
+  </Accordion>
+</AccordionGroup>
+
+## Trace Context Propagation
+
+All distributed tracing plugins propagate trace context across service boundaries:
+
+### HTTP Headers
+
+Trace context is propagated via HTTP headers:
+
+| System | Header(s) | Format |
+|--------|-----------|--------|
+| **Brave/Zipkin** | `B3` or `X-B3-*` | B3 single or multi-header |
+| **Jaeger** | `uber-trace-id` | Jaeger native format |
+| **W3C** | `traceparent`, `tracestate` | W3C Trace Context |
+
+### Messaging
+
+For message queues (JMS, AMQP):
+
+- Trace context in message headers
+- Correlation ID mapping
+- Async operation tracking
+- Message queue topology
+
+### Database Operations
+
+Database calls include trace context:
+
+- SQL comments with trace ID
+- Database-specific mechanisms
+- Query correlation
+
+## Sampling
+
+Distributed tracing systems use sampling to reduce overhead:
+
+### Sampling Strategies
+
+<Tabs>
+  <Tab title="Constant">
+    Always sample (1.0) or never sample (0.0)
+    
+    ```java
+    Sampler.ALWAYS_SAMPLE  // 100% sampling
+    Sampler.NEVER_SAMPLE   // 0% sampling
+    ```
+  </Tab>
+  <Tab title="Probabilistic">
+    Sample a percentage of traces
+    
+    ```java
+    // 10% sampling
+    Sampler.create(0.1f)
+    ```
+  </Tab>
+  <Tab title="Rate Limiting">
+    Limit traces per second
+    
+    ```java
+    // Max 10 traces/second
+    RateLimitingSampler.create(10)
+    ```
+  </Tab>
+  <Tab title="Adaptive">
+    Dynamically adjust based on load (Jaeger)
+    
+    ```java
+    // Remote adaptive sampling
+    RemoteSampler.create("my-service")
+    ```
+  </Tab>
+</Tabs>
+
+### Profiler and Tracing Sampling
+
+The profiler respects tracing system sampling decisions:
+
+1. **Sampled Traces**: Full profiler instrumentation
+2. **Unsampled Traces**: Minimal overhead, trace context only
+3. **Independent Sampling**: Profiler can sample independently for slow requests/errors
+
+## Configuration
+
+Distributed tracing plugins are automatically enabled when the agent detects the tracing library in the classpath.
+
+### Customizing Trace Integration
+
+```xml
+<profiler-configuration>
+  <ruleset>
+    <rule>
+      <class>brave.Tracer</class>
+      <method>nextSpan</method>
+      <method-editor>BraveSpanHandler</method-editor>
+    </rule>
+  </ruleset>
+</profiler-configuration>
+```
+
+### Environment Variables
+
+Configure tracing systems via environment variables:
+
+#### Jaeger
+
+```bash
+JAEGER_SERVICE_NAME=my-service
+JAEGER_AGENT_HOST=localhost
+JAEGER_AGENT_PORT=6831
+JAEGER_SAMPLER_TYPE=probabilistic
+JAEGER_SAMPLER_PARAM=0.1
+```
+
+#### Zipkin
+
+```bash
+ZIPKIN_BASE_URL=http://localhost:9411
+ZIPKIN_SERVICE_NAME=my-service
+```
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Microservices" icon="network-wired">
+    Trace requests across multiple microservices
+  </Card>
+  <Card title="Root Cause Analysis" icon="magnifying-glass">
+    Identify service dependencies and failure points
+  </Card>
+  <Card title="Performance Optimization" icon="gauge-high">
+    Find bottlenecks in distributed transactions
+  </Card>
+  <Card title="Service Dependencies" icon="diagram-project">
+    Visualize service call graphs and dependencies
+  </Card>
+</CardGroup>
+
+## Deployment Architecture
+
+### Zipkin Architecture
+
+```
+Application (Brave) → Zipkin Collector → Storage (Cassandra/ES) → Zipkin UI
+                   → Profiler Agent → Profiler Backend → Analysis
+```
+
+### Jaeger Architecture
+
+```
+Application (Jaeger Client) → Jaeger Agent → Jaeger Collector → Storage → Jaeger UI
+                           → Profiler Agent → Profiler Backend → Analysis
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Trace Context Not Propagating">
+    - Verify the tracing library is in the classpath
+    - Check HTTP header propagation configuration
+    - Ensure both sender and receiver have plugins enabled
+    - Review header size limits
+    - Check for header filtering by proxies/load balancers
+  </Accordion>
+  
+  <Accordion title="Missing Spans in Tracing UI">
+    - Check sampling configuration (may be too low)
+    - Verify reporter configuration
+    - Ensure collector/agent is reachable
+    - Review network connectivity
+    - Check for dropped spans due to buffer limits
+  </Accordion>
+  
+  <Accordion title="Performance Issues">
+    - Reduce sampling rate
+    - Use async reporters
+    - Increase buffer sizes
+    - Check collector/backend capacity
+    - Review instrumentation overhead
+  </Accordion>
+  
+  <Accordion title="Trace ID Mismatch">
+    - Verify consistent trace ID format
+    - Check for trace ID truncation
+    - Ensure compatible versions across services
+    - Review custom propagation logic
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+1. **Consistent Sampling**: Use the same sampling strategy across all services
+2. **Service Names**: Use clear, descriptive service names
+3. **Span Naming**: Follow naming conventions for spans
+4. **Tag Wisely**: Add relevant tags without excessive cardinality
+5. **Monitor Overhead**: Track instrumentation impact on performance
+6. **Storage Planning**: Plan for trace data volume and retention
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Integration Guide" icon="link" href="/integration/distributed-tracing">
+    Set up end-to-end distributed tracing
+  </Card>
+  <Card title="Messaging Plugins" icon="message" href="/plugins/messaging">
+    Integrate with message queues
+  </Card>
+  <Card title="HTTP Plugins" icon="network-wired" href="/plugins/http-clients">
+    HTTP client and server instrumentation
+  </Card>
+  <Card title="Configuration" icon="gear" href="/setup/configuration">
+    Configure distributed tracing
+  </Card>
+</CardGroup>

@@ -1,0 +1,358 @@
+---
+title: Supported Versions
+description: Comprehensive list of supported versions for frameworks, libraries, and platforms
+---
+
+This page provides detailed version compatibility information for all components supported by Qubership Profiler Agent.
+
+## Java Runtime
+
+### Java Virtual Machine
+
+| JVM | Minimum Version | Maximum Version | Recommended | Notes |
+|-----|----------------|-----------------|-------------|-------|
+| Oracle JDK | 8 | 21 | 17 or 21 | LTS versions recommended |
+| OpenJDK | 8 | 21 | 17 or 21 | LTS versions recommended |
+| Eclipse Temurin | 8 | 21 | 17 or 21 | Formerly AdoptOpenJDK |
+| Amazon Corretto | 8 | 21 | 17 or 21 | AWS-supported distribution |
+| Azul Zulu | 8 | 21 | 17 or 21 | TCK-certified |
+| GraalVM | 11 | 21 | 21 | Native image not supported |
+
+<Warning>
+  **Java 8 Support:** While Java 8 is supported, it is end-of-life. We strongly recommend upgrading to Java 17 or 21 for security and performance improvements.
+</Warning>
+
+<Info>
+  **Build Requirements:** Building the agent from source requires **Java 17 or 21**. The compiled agent can then be used with Java 8+.
+</Info>
+
+## Application Servers
+
+### Apache Tomcat
+
+| Version | Plugin | Status | Jakarta EE | Notes |
+|---------|--------|--------|------------|-------|
+| 7.x | `tomcat_http` | Supported | No | Legacy support |
+| 8.0 | `tomcat_http` | Supported | No | |
+| 8.5 | `tomcat_http` | Supported | No | |
+| 9.x | `tomcat_http` | **Recommended** | No | Java EE 8 |
+| 10.0 | `tomcat10_http` | **Recommended** | Yes | Jakarta EE 9 |
+| 10.1 | `tomcat10_http` | **Recommended** | Yes | Jakarta EE 10 |
+| 11.x | `tomcat10_http` | Supported | Yes | Jakarta EE 11 |
+
+### Eclipse Jetty
+
+| Version | Plugin | Status | Jakarta EE | Notes |
+|---------|--------|--------|------------|-------|
+| 7.x | `jetty_http` | Supported | No | Legacy support |
+| 8.x | `jetty_http` | Supported | No | |
+| 9.x | `jetty_http` | **Recommended** | No | Java EE 7/8 |
+| 10.x | `jetty10_http` | **Recommended** | Yes | Jakarta EE 9 |
+| 11.x | `jetty10_http` | Supported | Yes | Jakarta EE 10 |
+| 12.x | `jetty10_http` | Supported | Yes | Jakarta EE 10+ |
+
+### Undertow
+
+| Version | Plugin | Status | Notes |
+|---------|--------|--------|-------|
+| 1.x | `undertow_http` | Supported | WildFly 8-10 |
+| 2.0-2.2 | `undertow_http` | **Recommended** | WildFly 11-26 |
+| 2.3+ | `undertow23_http` | **Recommended** | WildFly 27+ |
+
+### Liferay Portal
+
+| Version | Plugin | Status | Notes |
+|---------|--------|--------|-------|
+| 6.x | `liferay` | Supported | Legacy |
+| 7.0-7.2 | `liferay` | Supported | |
+| 7.3-7.4 | `liferay` | **Recommended** | Current LTS |
+
+## Databases
+
+### JDBC Drivers
+
+#### MySQL
+
+| Driver | Version | Plugin | Status | Notes |
+|--------|---------|--------|--------|-------|
+| MySQL Connector/J | 5.x | `mysql` | Supported | Legacy |
+| MySQL Connector/J | 8.0.x | `mysql` | **Recommended** | Current |
+| MySQL Connector/J | 8.1+ | `mysql` | Supported | Latest |
+| MariaDB Connector/J | 2.x | `mysql` | Supported | Compatible |
+| MariaDB Connector/J | 3.x | `mysql` | Supported | Latest |
+
+#### PostgreSQL
+
+| Driver | Version | Plugin | Status | Notes |
+|--------|---------|--------|--------|-------|
+| PostgreSQL JDBC | 42.2.x | `postgresql` | Supported | Older stable |
+| PostgreSQL JDBC | 42.3.x | `postgresql` | **Recommended** | Stable |
+| PostgreSQL JDBC | 42.4+ | `postgresql` | Supported | Latest |
+
+### NoSQL Databases
+
+#### Cassandra
+
+| Driver | Version | Plugin | Status | Notes |
+|--------|---------|--------|--------|-------|
+| DataStax Java Driver | 3.0-3.11 | `cassandra` | **Recommended** | For Cassandra 2.1-3.x |
+| DataStax Java Driver | 4.0+ | `cassandra4` | **Recommended** | For Cassandra 3.0-4.x |
+
+#### Couchbase
+
+| SDK | Version | Plugin | Status | Notes |
+|-----|---------|--------|--------|-------|
+| Java SDK | 2.x | `couchbase` | Supported | Legacy |
+| Java SDK | 3.x | `couchbase` | **Recommended** | Current |
+
+#### Elasticsearch
+
+| Client | Version | Plugin | Status | Notes |
+|--------|---------|--------|--------|-------|
+| Java High Level Client | 6.x | `elasticsearch` | Supported | Legacy |
+| Java High Level Client | 7.x | `elasticsearch` | **Recommended** | |
+| Java High Level Client | 8.x | `elasticsearch` | Supported | Deprecated by Elastic |
+| Java API Client | 8.x | `elasticsearch` | Supported | New official client |
+
+#### OpenSearch
+
+| Client | Version | Plugin | Status | Notes |
+|--------|---------|--------|--------|-------|
+| Java Client | 1.x | `opensearch` | Supported | |
+| Java Client | 2.x | `opensearch` | **Recommended** | Current |
+
+## Frameworks
+
+### Spring Framework
+
+| Component | Version | Plugin | Status | Notes |
+|-----------|---------|--------|--------|-------|
+| Spring Core | 4.x | `spring` | Supported | Legacy |
+| Spring Core | 5.x | `spring` | **Recommended** | Java 8+ |
+| Spring Core | 6.x | `spring` | Supported | Java 17+, Jakarta EE |
+| Spring Boot | 1.x | `spring` | Supported | EOL |
+| Spring Boot | 2.x | `spring` | **Recommended** | LTS |
+| Spring Boot | 3.x | `spring` | **Recommended** | Java 17+, Jakarta EE |
+| Spring Web MVC | 4.x-6.x | `springrest` | Supported | |
+| Spring WebFlux | 5.x-6.x | `springrest` | Supported | Reactive |
+
+### Vert.x
+
+| Version | Plugin | Status | Notes |
+|---------|--------|--------|-------|
+| 3.x | `vertx` | Supported | Legacy |
+| 4.x | `vertx` | **Recommended** | Current |
+
+### OSGi
+
+| Framework | Version | Plugin | Status | Notes |
+|-----------|---------|--------|--------|-------|
+| Apache Felix | 4.x-7.x | `apache_felix` | Supported | |
+| Eclipse Equinox | 3.x | `equinox` | Supported | Eclipse runtime |
+
+## HTTP Clients
+
+| Client | Version | Plugin | Status | Notes |
+|--------|---------|--------|--------|-------|
+| HttpURLConnection | Java 8+ | `http` | Supported | Built-in |
+| HttpClient (java.net.http) | Java 11+ | `java_http_client` | **Recommended** | Modern API |
+| Apache HttpClient | 4.x | `apache_httpclient` | Supported | Legacy |
+| Apache HttpClient | 5.x | `apache_httpclient` | **Recommended** | Current |
+
+## Message Queues
+
+### ActiveMQ
+
+| Version | Plugin | Status | Notes |
+|---------|--------|--------|-------|
+| 5.x | `activemq` | **Recommended** | Classic |
+| Artemis 2.x | `activemq` | Supported | Next-gen |
+
+### RabbitMQ
+
+| Client | Version | Plugin | Status | Notes |
+|--------|---------|--------|--------|-------|
+| Java Client | 3.x | `rabbitmq` | Supported | Legacy |
+| Java Client | 4.x | `rabbitmq` | Supported | |
+| Java Client | 5.x | `rabbitmq` | **Recommended** | Current |
+
+### HornetQ
+
+| Version | Plugin | Status | Notes |
+|---------|--------|--------|-------|
+| 2.x | `hornetq` | Supported | JBoss |
+
+## Distributed Tracing
+
+### Zipkin / Brave
+
+| Library | Version | Plugin | Status | Notes |
+|---------|---------|--------|--------|-------|
+| Brave | 4.x | `brave` | Supported | Legacy |
+| Brave | 5.x | `brave` | **Recommended** | Current |
+
+### Jaeger
+
+| Client | Version | Plugin | Status | Notes |
+|--------|---------|--------|--------|-------|
+| Java Client | 0.x | `jaeger` | Supported | Legacy |
+| Java Client | 1.x | `jaeger` | **Recommended** | OpenTracing |
+
+### Ocelot
+
+| Version | Plugin | Status | Notes |
+|---------|--------|--------|-------|
+| 1.x-2.x | `ocelot` | Supported | Inspectit Ocelot |
+
+## Build Tools
+
+### Apache ANT
+
+| Version | Plugin | Status | Notes |
+|---------|--------|--------|-------|
+| 1.7-1.10.1 | `ant` | Supported | Legacy API |
+| 1.10.2+ | `ant_1102` | **Recommended** | Modern API |
+
+## Serialization
+
+### Jackson
+
+| Version | Plugin | Status | Notes |
+|---------|--------|--------|-------|
+| 2.x | `jackson` | **Recommended** | All 2.x versions |
+
+## Logging
+
+### Log4j
+
+| Version | Plugin | Status | Notes |
+|---------|--------|--------|-------|
+| 1.x | `log4j_enhancer` | Supported | Legacy (security issues) |
+| 2.x | `log4j_enhancer` | **Recommended** | Current |
+
+## Schedulers
+
+### Quartz
+
+| Version | Plugin | Status | Notes |
+|---------|--------|--------|-------|
+| 2.x | `quartz` | **Recommended** | Current |
+
+## Scripting Engines
+
+### Rhino
+
+| Version | Plugin | Status | Notes |
+|---------|--------|--------|-------|
+| 1.7+ | `rhino` | Supported | JavaScript for Java |
+
+## External Configuration
+
+### ZooKeeper
+
+| Version | Status | Notes |
+|---------|--------|-------|
+| 3.4.x | Supported | Legacy |
+| 3.5.x | Supported | |
+| 3.6+ | **Recommended** | Current |
+
+### Consul
+
+| Version | Status | Notes |
+|---------|--------|-------|
+| 1.x | **Recommended** | All versions |
+
+### Spring Cloud Config
+
+| Version | Status | Notes |
+|---------|--------|-------|
+| 2.x | Supported | Spring Boot 2.x |
+| 3.x | **Recommended** | Spring Boot 3.x |
+| 4.x | Supported | Spring Boot 3.x |
+
+## Operating Systems
+
+### Linux
+
+| Distribution | Supported | Notes |
+|--------------|-----------|-------|
+| Ubuntu | 18.04+ | LTS recommended |
+| Debian | 9+ | |
+| CentOS | 7+ | |
+| RHEL | 7+ | |
+| Amazon Linux | 2, 2023 | |
+| Alpine | 3.12+ | musl libc compatible |
+
+### Windows
+
+| Version | Supported | Notes |
+|---------|-----------|-------|
+| Windows Server 2016+ | Yes | |
+| Windows 10/11 | Yes | Development only |
+
+### macOS
+
+| Version | Supported | Notes |
+|---------|-----------|-------|
+| macOS 10.14+ | Yes | Development only |
+
+## Container Platforms
+
+### Docker
+
+| Version | Supported | Notes |
+|---------|-----------|-------|
+| 19.03+ | **Recommended** | |
+| 20.x | **Recommended** | Current |
+
+### Kubernetes
+
+| Version | Supported | Notes |
+|---------|-----------|-------|
+| 1.19+ | Supported | |
+| 1.24+ | **Recommended** | Current |
+
+## Version Compatibility Notes
+
+<Note>
+  **Semantic Versioning:** The agent follows semantic versioning. Minor version updates are backward compatible.
+</Note>
+
+<Warning>
+  **Jakarta EE Migration:** When upgrading from Java EE to Jakarta EE (namespace change from `javax.*` to `jakarta.*`), ensure you use the corresponding plugins:
+  - Tomcat 10+: Use `tomcat10_http`
+  - Jetty 10+: Use `jetty10_http`
+  - Spring 6: Use with Java 17+
+</Warning>
+
+<Info>
+  **Testing:** While the agent is tested against the versions listed here, it may work with other versions. Report any compatibility issues on [GitHub](https://github.com/Netcracker/qubership-profiler-agent/issues).
+</Info>
+
+## Version Testing Matrix
+
+The agent is continuously tested against:
+
+- **Java:** 8, 11, 17, 21
+- **Application Servers:** Tomcat 9/10, Jetty 9/10, Undertow 2.x
+- **Databases:** MySQL 8, PostgreSQL 14, Cassandra 3/4
+- **Frameworks:** Spring Boot 2.7, 3.1
+- **Container Platforms:** Docker 20.x, Kubernetes 1.24+
+
+## Reporting Compatibility Issues
+
+If you encounter issues with a specific version:
+
+1. Check this page for known limitations
+2. Search [existing issues](https://github.com/Netcracker/qubership-profiler-agent/issues)
+3. Report new issues with:
+   - Agent version
+   - Framework/library version
+   - Java version
+   - Stack trace or error message
+
+## Related Pages
+
+- [Plugin List](/reference/plugin-list) - Complete plugin documentation
+- [Installation Guide](/installation) - Installation instructions
+- [Agent Configuration](/reference/agent-configuration) - Configuration options

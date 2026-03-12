@@ -1,0 +1,197 @@
+---
+title: Agent Configuration Reference
+description: Complete reference for Qubership Profiler Agent configuration options
+---
+
+This page provides a comprehensive reference for all configuration options available in the Qubership Profiler Agent.
+
+## Configuration Interfaces
+
+The agent uses a versioned configuration interface hierarchy to maintain backward compatibility:
+
+### Base Configuration
+
+<ParamField path="storeTransformedClassesPath" type="string">
+  Path where transformed classes are stored for debugging purposes.
+</ParamField>
+
+<ParamField path="enhancementRegistry" type="EnhancementRegistry">
+  Registry of all class enhancements applied by the agent.
+</ParamField>
+
+### Configuration_01
+
+Extends base configuration with parameter management:
+
+<ParamField path="parametersInfo" type="Map<String, ParameterInfo>">
+  Map of parameter names to their detailed information including type, validation rules, and default values.
+</ParamField>
+
+<ParamField path="logMaxAge" type="long">
+  Maximum age of log files in milliseconds before rotation.
+</ParamField>
+
+<ParamField path="logMaxSize" type="long">
+  Maximum size of log files in bytes before rotation.
+</ParamField>
+
+### Configuration_02
+
+Adds class verification:
+
+<ParamField path="verifyClassEnabled" type="boolean">
+  Enables verification of instrumented classes to ensure bytecode validity.
+  
+  **Default:** `false`
+</ParamField>
+
+### Configuration_03
+
+Adds metrics configuration:
+
+<ParamField path="metricsConfig" type="List<MetricsConfiguration>">
+  List of metrics configurations defining what metrics to collect and how to export them.
+</ParamField>
+
+### Configuration_04
+
+Adds network export capabilities:
+
+<ParamField path="networkExportParams" type="NetworkExportParams">
+  Parameters for exporting profiling data over the network, including collector URLs, authentication, and retry policies.
+</ParamField>
+
+### Configuration_05
+
+Adds system metrics:
+
+<ParamField path="systemMetricsConfig" type="List<MetricsDescription>">
+  Configuration for system-level metrics including CPU, memory, and I/O statistics.
+</ParamField>
+
+### Configuration_06 (Current)
+
+Adds dynamic properties:
+
+<ParamField path="properties" type="Map<String, ProfilerProperty>">
+  Map of dynamic profiler properties that can be updated at runtime without restarting the agent.
+</ParamField>
+
+## System Properties
+
+The agent reads configuration from both system properties and environment variables.
+
+### Server Identification
+
+| Property | Environment Variable | Description | Default |
+|----------|---------------------|-------------|--------|
+| `com.netcracker.esc.serverName` | - | Custom server name for the profiled application | Auto-detected |
+| `weblogic.Name` | - | WebLogic server name (auto-detected) | - |
+| `jboss.server.name` | - | JBoss server name (auto-detected) | - |
+| `profiler.home` | - | Home directory for profiler data | Auto-detected |
+
+### Logging Configuration
+
+| Property | Environment Variable | Description | Default |
+|----------|---------------------|-------------|--------|
+| `com.netcracker.profiler.log.root_level` | - | Root log level for profiler | `info` |
+| - | `ESC_LOG_FORMAT` | Custom log format for agent loggers using java logging service | - |
+| - | `LOGBACK_CLOUD_AGENT_LOG_FORMAT` | Custom log format for agent loggers using logback service | - |
+| - | `LOG_LEVEL` | General log level | `info` |
+
+### Diagnostic Mode
+
+| Property | Environment Variable | Description | Default |
+|----------|---------------------|-------------|--------|
+| - | `NC_DIAGNOSTIC_MODE` | Enables cloud deployment diagnostic mode | `false` |
+
+## Configuration Loading
+
+The agent loads configuration in the following order (later sources override earlier ones):
+
+1. **Default values** - Built-in defaults
+2. **System properties** - JVM `-D` arguments
+3. **Environment variables** - OS environment
+4. **Configuration files** - XML configuration in profiler home
+5. **Dynamic configuration** - Runtime updates from ZooKeeper, Consul, or Config Server
+
+## Dynamic Configuration Sources
+
+The agent supports loading configuration from external configuration servers:
+
+### ZooKeeper
+
+When `ZOOKEEPER_ENABLED=true`:
+
+- Configuration path: `/config/default/zookeeper.xml`
+- Custom config: `/config/default/00-custom-config.xml`
+- Address: Set via `ZOOKEEPER_ADDRESS`
+
+### Consul
+
+When `CONSUL_ENABLED=true` or `CONSUL_URL` is set:
+
+- Configuration loaded from Consul KV store
+- ACL authentication supported
+- DC: `dc1` (default)
+
+### Config Server
+
+When `CONFIG_SERVER` environment variable is set:
+
+- Configuration loaded from Spring Cloud Config Server
+- URL must be a valid HTTP/HTTPS endpoint
+- Supports authentication via IDP
+
+## Configuration Reloading
+
+The agent can reload configuration dynamically without restarting:
+
+- **Trigger**: Configuration change detected in external source
+- **Scope**: Most configuration changes apply immediately
+- **Exceptions**: Some low-level instrumentation settings require restart
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Environment Variables for Cloud Deployments">
+    Environment variables are the recommended way to configure the agent in containerized environments:
+    
+    ```bash
+    -e NC_DIAGNOSTIC_MODE=true
+    -e LOG_LEVEL=info
+    -e ZOOKEEPER_ENABLED=true
+    ```
+  </Accordion>
+
+  <Accordion title="Use System Properties for On-Premise">
+    For traditional deployments, use JVM system properties:
+    
+    ```bash
+    -javaagent:profiler-agent.jar
+    -Dcom.netcracker.esc.serverName=app-server-01
+    -Dprofiler.home=/opt/profiler
+    ```
+  </Accordion>
+
+  <Accordion title="Leverage Dynamic Configuration">
+    Use ZooKeeper, Consul, or Config Server for:
+    - Multi-instance deployments
+    - Configuration that changes frequently
+    - Environment-specific settings
+  </Accordion>
+
+  <Accordion title="Enable Verification in Development">
+    Set `verifyClassEnabled=true` during development to catch instrumentation issues early:
+    
+    ```bash
+    -Dprofiler.verifyClass=true
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Pages
+
+- [Environment Variables](/reference/environment-variables) - Complete list of environment variables
+- [Plugin List](/reference/plugin-list) - Available instrumentation plugins
+- [CLI Commands](/reference/cli-commands) - Command-line tools reference

@@ -1,0 +1,417 @@
+---
+title: Plugin Development
+description: Guide to developing custom instrumentation plugins for Qubership Profiler Agent
+---
+
+This guide explains how to develop custom instrumentation plugins for the Qubership Profiler Agent.
+
+## Overview
+
+Plugins allow you to instrument specific libraries, frameworks, or application servers by injecting bytecode modifications at runtime. The agent uses ASM (Java bytecode manipulation framework) for instrumentation.
+
+## Plugin Architecture
+
+Each plugin consists of:
+
+1. **EnhancerPlugin** - Main plugin class that registers enhancers
+2. **Injector Classes** - Classes with methods ending in `$profiler` that contain instrumentation code
+3. **ClassEnhancer** - Generated code that applies bytecode modifications
+4. **Configuration** - XML configuration for plugin activation
+
+## Creating a Plugin
+
+### Step 1: Create Plugin Module
+
+Create a new Gradle module under `plugins/`:
+
+```kotlin plugins/myplugin/build.gradle.kts
+plugins {
+    id("build-logic.profiler-published-plugin")
+}
+```
+
+### Step 2: Create EnhancerPlugin Class
+
+Create your main plugin class extending `EnhancerPlugin`:
+
+```java src/main/java/com/netcracker/profiler/instrument/enhancement/EnhancerPlugin_myplugin.java
+package com.netcracker.profiler.instrument.enhancement;
+
+import com.netcracker.profiler.agent.Configuration_01;
+import org.w3c.dom.Element;
+
+public class EnhancerPlugin_myplugin extends EnhancerPlugin {
+    @Override
+    public void init(Element node, Configuration_01 conf) {
+        super.init(node, conf);
+    }
+    
+    @Override
+    public boolean accept(ClassInfo info) {
+        // Optional: filter which classes this plugin applies to
+        return true;
+    }
+}
+```
+
+<Note>
+  The plugin class name **must** follow the pattern `EnhancerPlugin_<pluginname>` where `<pluginname>` matches your module name.
+</Note>
+
+### Step 3: Create Injector Classes
+
+Create classes with instrumentation logic in `src/injector/java/`:
+
+```java src/injector/java/com/example/MyFramework.java
+package com.example;
+
+import com.netcracker.profiler.agent.Profiler;
+import com.netcracker.profiler.agent.CallInfo;
+
+public class MyFramework {
+    // Native method declaration - original method signature
+    public native void processRequest(String requestId);
+    
+    // Instrumented method - ends with $profiler
+    public void processRequest$profiler(String requestId) {
+        try {
+            Profiler.enter("MyFramework.processRequest");
+            Profiler.event(requestId, "request.id");
+            
+            // Call original method
+            processRequest(requestId);
+        } catch (Throwable t) {
+            Profiler.pluginException(t);
+        } finally {
+            Profiler.exit();
+        }
+    }
+}
+```
+
+<Info>
+  Methods ending with `$profiler` are used to generate bytecode that wraps the original method. The `native` declaration represents the original method being instrumented.
+</Info>
+
+### Step 4: Use Plugin Generator
+
+The `plugin-generator` module generates the ClassEnhancer implementations from your injector classes.
+
+The generator:
+- Scans compiled classes in your plugin module
+- Finds methods ending with `$profiler`
+- Generates ASM code to apply instrumentation
+- Creates an `EnhancerPlugin_<name>Enhancers` class
+
+<CodeGroup>
+```bash Using Gradle
+./gradlew :plugins:myplugin:build
+```
+
+```bash Manual Generation
+java -cp plugin-generator.jar \
+  com.netcracker.profiler.tools.GenerateInjectorCommand \
+  --input-class-directory build/classes/java/injector \
+  --output-file src/main/java/EnhancerPlugin_mypluginEnhancers.java
+```
+</CodeGroup>
+
+## Plugin API Reference
+
+### EnhancerPlugin
+
+Base class for all plugins.
+
+**Key Methods:**
+
+- `init(Element node, Configuration_01 conf)` - Initialize plugin and register enhancers
+- `accept(ClassInfo info)` - Filter which classes to instrument (optional)
+- `getStackTraceAtCreate()` - Get configuration context
+
+### ClassEnhancer Interface
+
+```java
+public interface ClassEnhancer extends Opcodes {
+    void enhance(ClassVisitor cv);
+}
+```
+
+Implement this to apply ASM transformations to class bytecode.
+
+### Profiler API
+
+Use these methods in your injector classes:
+
+```java
+// Mark method entry/exit
+Profiler.enter(String signature);
+Profiler.exit();
+
+// Log events
+Profiler.event(Object value, String key);
+Profiler.event(long value, String key);
+
+// Handle exceptions
+Profiler.pluginException(Throwable t);
+
+// Access profiler state
+ProfilerState state = Profiler.getState();
+state.callInfo.setClientId(String id);
+```
+
+## Instrumentation Patterns
+
+### Pattern 1: Method Wrapping
+
+Wrap a method to track entry/exit:
+
+```java
+public void execute$profiler() {
+    try {
+        Profiler.enter("MyClass.execute");
+        execute(); // Call original
+    } finally {
+        Profiler.exit();
+    }
+}
+```
+
+### Pattern 2: Parameter Capture
+
+Capture method parameters:
+
+```java
+public void query$profiler(String sql, Object[] params) {
+    try {
+        Profiler.enter("Database.query");
+        Profiler.event(sql, "sql.query");
+        if (params != null) {
+            Profiler.event(Arrays.toString(params), "sql.params");
+        }
+        query(sql, params);
+    } finally {
+        Profiler.exit();
+    }
+}
+```
+
+### Pattern 3: Return Value Tracking
+
+```java
+public String fetchData$profiler(String key) {
+    String result = null;
+    try {
+        Profiler.enter("Cache.fetchData");
+        Profiler.event(key, "cache.key");
+        result = fetchData(key);
+        if (result != null) {
+            Profiler.event("HIT", "cache.status");
+        } else {
+            Profiler.event("MISS", "cache.status");
+        }
+        return result;
+    } finally {
+        Profiler.exit();
+    }
+}
+```
+
+### Pattern 4: Exception Handling
+
+```java
+public void risky$profiler() {
+    try {
+        Profiler.enter("RiskyOperation");
+        risky();
+    } catch (Throwable t) {
+        Profiler.pluginException(t);
+        throw t; // Re-throw if needed
+    } finally {
+        Profiler.exit();
+    }
+}
+```
+
+## Example: HTTP Client Plugin
+
+Here's a complete example for instrumenting an HTTP client:
+
+```java src/injector/java/com/example/http/HttpClient.java
+package com.example.http;
+
+import com.netcracker.profiler.agent.Profiler;
+import com.netcracker.profiler.agent.CallInfo;
+
+public class HttpClient {
+    public native Response execute(Request request);
+    
+    public Response execute$profiler(Request request) {
+        Response response = null;
+        try {
+            // Start profiling
+            String url = request.getUrl();
+            String method = request.getMethod();
+            
+            Profiler.enter("HttpClient.execute (" + method + " " + url + ")");
+            
+            // Log request details
+            Profiler.event(url, "http.url");
+            Profiler.event(method, "http.method");
+            
+            // Set client ID for correlation
+            Profiler.getState().callInfo.setClientId("HTTP " + url);
+            
+            // Execute original request
+            response = execute(request);
+            
+            // Log response
+            if (response != null) {
+                Profiler.event(response.getStatusCode(), "http.status");
+            }
+            
+            return response;
+        } catch (Throwable t) {
+            Profiler.pluginException(t);
+            throw t;
+        } finally {
+            Profiler.exit();
+        }
+    }
+}
+```
+
+## Plugin Configuration
+
+Create an XML configuration file in `src/main/resources/config/minimal/50main/`:
+
+```xml myplugin.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin name="myplugin">
+    <description>Instrumentation for My Framework</description>
+    <enabled>true</enabled>
+</plugin>
+```
+
+## Testing Your Plugin
+
+1. **Build the plugin:**
+   ```bash
+   ./gradlew :plugins:myplugin:build
+   ```
+
+2. **Include in agent build:**
+   Add to `build.gradle.kts`:
+   ```kotlin
+   nmcpAggregation(projects.plugins.myplugin)
+   ```
+
+3. **Run with test application:**
+   ```bash
+   java -javaagent:agent/build/libs/profiler-agent.jar \
+        -jar your-test-app.jar
+   ```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Minimize Performance Impact">
+    - Only instrument critical paths
+    - Avoid expensive operations in hot methods
+    - Use conditional event logging based on `ProfilerData` flags
+  </Accordion>
+  
+  <Accordion title="Handle Errors Gracefully">
+    - Always use try-catch-finally blocks
+    - Call `Profiler.pluginException()` for errors
+    - Never let plugin exceptions break the application
+  </Accordion>
+  
+  <Accordion title="Follow Naming Conventions">
+    - Plugin class: `EnhancerPlugin_<name>`
+    - Instrumented methods: `<methodName>$profiler`
+    - Static initializers: `clinit$profiler`
+  </Accordion>
+  
+  <Accordion title="Document Your Plugin">
+    - Add README.md explaining what the plugin instruments
+    - Document configuration options
+    - Include example use cases
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Topics
+
+### Filtering Classes
+
+Implement `accept()` to control which classes get instrumented:
+
+```java
+@Override
+public boolean accept(ClassInfo info) {
+    // Only instrument classes in specific packages
+    String className = info.getClassName();
+    return className.startsWith("com/mycompany/");
+}
+```
+
+### Multiple Method Variants
+
+Instrument method overloads:
+
+```java
+public void process$profiler(String data) {
+    try {
+        Profiler.enter("process(String)");
+        process(data);
+    } finally {
+        Profiler.exit();
+    }
+}
+
+public void process$profiler(byte[] data) {
+    try {
+        Profiler.enter("process(byte[])");
+        process(data);
+    } finally {
+        Profiler.exit();
+    }
+}
+```
+
+### Field Instrumentation
+
+Add profiling fields to classes:
+
+```java
+public class MyClass {
+    // Field ending with $profiler will be added
+    private static int callCount$profiler = 0;
+    
+    public void method$profiler() {
+        callCount$profiler++;
+        Profiler.event(callCount$profiler, "call.count");
+        method();
+    }
+}
+```
+
+## Existing Plugin Examples
+
+Explore these plugins for reference:
+
+- **plugins/spring** - Spring Framework instrumentation
+- **plugins/http** - Generic HTTP instrumentation
+- **plugins/mysql** - MySQL JDBC instrumentation
+- **plugins/jetty_http** - Jetty servlet container
+- **plugins/test** - Test plugin with examples
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Building" icon="hammer" href="/development/building">
+    Learn how to build the project
+  </Card>
+  <Card title="Contributing" icon="code-pull-request" href="/development/contributing">
+    Submit your plugin to the project
+  </Card>
+</CardGroup>

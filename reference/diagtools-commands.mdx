@@ -1,0 +1,452 @@
+---
+title: Diagtools Commands Reference
+description: Complete reference for diagtools command-line utility
+---
+
+The `diagtools` utility is a CLI tool for collecting heap dumps, thread dumps, CPU usage data, and managing diagnostic files.
+
+## Global Options
+
+| Option | Description |
+|--------|-------------|
+| `-cpu_prof FILE` | Write CPU profile to file (for debugging diagtools) |
+| `-mem_prof FILE` | Write memory profile to file (for debugging diagtools) |
+| `-h, --help` | Show help message |
+
+## Commands Overview
+
+| Command | Description |
+|---------|-------------|
+| [heap](#heap) | Collect heap dump for Java process |
+| [dump](#dump) | Collect thread dump and CPU usage |
+| [scan](#scan) | Find, zip, and upload dump files |
+| [schedule](#schedule) | Run dump collection on schedule |
+| [zkConfig](#zkconfig) | Update configuration via ZooKeeper |
+| [consulCfg](#consulcfg) | Update configuration via Consul |
+| [serverCfg](#servercfg) | Update configuration via Config Server |
+
+---
+
+## heap
+
+Collects a heap dump for the Java process and optionally compresses and uploads it.
+
+### Usage
+
+```bash
+diagtools heap [zip] [upload]
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `zip` | Optional. Zip the heap dump file after collection |
+| `upload` | Optional. Upload the zipped heap dump (requires `zip` flag) |
+
+### Behavior
+
+1. **Collection**: Runs `jmap -dump:format=b,file=${DUMP_PATH} ${PID}` to generate a binary heap dump
+2. **Compression** (if `zip` specified): Compresses the `.hprof` file using compression level from `NC_HEAP_DUMP_COMPRESSION_LEVEL`
+3. **Upload** (if `upload` specified): Uploads the `.hprof.zip` file to the diagnostic collector service
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|--------|
+| `NC_HEAP_DUMP_COMPRESSION_LEVEL` | Compression level (0=none, 1=fast, 9=best, -1=default) | `-1` |
+| `NC_DIAGNOSTIC_FOLDER` | Folder where heap dump is saved | `/tmp/diagnostic` |
+| `NC_DIAGNOSTIC_AGENT_SERVICE` | Diagnostic collector service URL | `nc-diagnostic-agent` |
+| `CLOUD_NAMESPACE` | Kubernetes namespace for upload URL | Required |
+| `DIAGNOSTIC_CENTER_DUMPS_ENABLED` | Enable upload to diagnostic center | `true` |
+
+### Upload Endpoint
+
+Uploads to: `http://{service}:8081/diagnostic/{namespace}/*/*/*/*/*/*/{podName}/{dumpName}`
+
+### Examples
+
+```bash
+# Collect heap dump only
+diagtools heap
+
+# Collect and compress
+diagtools heap zip
+
+# Collect, compress, and upload
+diagtools heap zip upload
+```
+
+### Exit Codes
+
+- `0` - Success
+- `1` - Error during collection, compression, or upload
+
+---
+
+## dump
+
+Collects Java thread dump and CPU usage information.
+
+### Usage
+
+```bash
+diagtools dump
+```
+
+### Behavior
+
+1. **Thread Dump**: Runs `jstack -l ${PID}` to collect thread dump (if enabled)
+2. **CPU Usage**: Runs `top -Hb -p${PID} -oTIME+ -d60 -n1` to collect CPU usage by thread (if enabled)
+3. **Output**: Saves dumps to `${NC_DIAGNOSTIC_LOGS_FOLDER}` with timestamp in filename
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|--------|
+| `NC_DIAGNOSTIC_THREADDUMP_ENABLED` | Enable thread dump collection | `true` |
+| `NC_DIAGNOSTIC_TOP_ENABLED` | Enable CPU usage collection | `true` |
+| `NC_DIAGNOSTIC_JSTACK_LONG_LISTENING_ENABLED` | Use `-l` flag with jstack for detailed locks | `false` |
+| `NC_DIAGNOSTIC_LOGS_FOLDER` | Folder where dumps are saved | `/tmp/diagnostic` |
+
+### Output Files
+
+- Thread dump: `${TIMESTAMP}.td.txt`
+- Top output: `${TIMESTAMP}.top.txt`
+
+### Examples
+
+```bash
+# Collect thread dump and CPU usage
+diagtools dump
+```
+
+### Notes
+
+- Uses file locking to prevent concurrent executions
+- The `-l` option for jstack provides extended lock information but may impact performance
+
+---
+
+## scan
+
+Finds files matching patterns, compresses `.hprof` files, and uploads them to the diagnostic collector.
+
+### Usage
+
+```bash
+diagtools scan [PATTERN]...
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `PATTERN` | File glob patterns to search for (can specify multiple) |
+
+### Behavior
+
+1. **Find**: Locates files matching the provided patterns
+2. **Compress**: Zips any `.hprof` files that aren't already compressed
+3. **Upload**: Uploads `.hprof.zip` and other found files to the diagnostic collector
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|--------|
+| `NC_DIAGNOSTIC_LOGS_FOLDER` | Default folder to search if no patterns specified | `/tmp/diagnostic` |
+| `NC_DIAGNOSTIC_AGENT_SERVICE` | Diagnostic collector service URL | `nc-diagnostic-agent` |
+| `CLOUD_NAMESPACE` | Kubernetes namespace | Required |
+| `DIAGNOSTIC_CENTER_DUMPS_ENABLED` | Enable upload to diagnostic center | `true` |
+
+### Examples
+
+```bash
+# Scan default folder for heap dumps
+diagtools scan "${NC_DIAGNOSTIC_LOG_FOLDER}"/*.hprof*
+
+# Scan for multiple file types
+diagtools scan ./core* ./hs_err* "${NC_DIAGNOSTIC_LOG_FOLDER}"/*.hprof*
+
+# Scan custom pattern
+diagtools scan /var/dumps/*.hprof /var/logs/jvm-crash-*.log
+```
+
+---
+
+## schedule
+
+Runs dump collection, scanning, and log cleanup on a recurring schedule.
+
+### Usage
+
+```bash
+diagtools schedule
+```
+
+### Behavior
+
+Runs three tasks on independent schedules:
+
+1. **Dump Collection** (every `DIAGNOSTIC_DUMP_INTERVAL`)
+   - Runs `dump` command to collect thread dumps and CPU usage
+   
+2. **Scan** (every `DIAGNOSTIC_SCAN_INTERVAL`)
+   - Runs `scan` command to find and upload diagnostic files
+   - Scans for: `*.hprof*`, `core*`, `hs_err*`, GC logs
+   
+3. **Log Cleanup** (every `KEEP_LOGS_INTERVAL`)
+   - Removes logs older than the retention interval
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|--------|
+| `DIAGNOSTIC_DUMP_INTERVAL` | Interval for dump collection | `1m` (1 minute) |
+| `DIAGNOSTIC_SCAN_INTERVAL` | Interval for scanning files | `1m` (1 minute) |
+| `KEEP_LOGS_INTERVAL` | Log retention period in days | `2` days |
+| `NC_DIAGNOSTIC_LOGS_FOLDER` | Logs folder location | `/tmp/diagnostic` |
+| `NC_DIAGNOSTIC_THREADDUMP_ENABLED` | Enable thread dumps | `true` |
+| `NC_DIAGNOSTIC_TOP_ENABLED` | Enable top dumps | `true` |
+| `NC_DIAGNOSTIC_GC_ENABLED` | Enable GC log collection | `true` |
+
+### Interval Format
+
+Intervals support Go duration strings or integer seconds:
+- Duration: `1m`, `30s`, `2h30m`, `1h`
+- Seconds: `60`, `120`
+
+### Examples
+
+```bash
+# Run with default intervals (1 minute)
+diagtools schedule
+
+# Run with custom intervals (via environment)
+DIAGNOSTIC_DUMP_INTERVAL=5m DIAGNOSTIC_SCAN_INTERVAL=10m diagtools schedule
+```
+
+### Notes
+
+- Runs indefinitely until interrupted (Ctrl+C) or terminated
+- Each task runs independently on its own schedule
+- Uses 30-second timeout for graceful shutdown
+
+---
+
+## zkConfig
+
+Updates Qubership Profiler Agent configuration stored in Apache ZooKeeper.
+
+### Usage
+
+```bash
+diagtools zkConfig PROPERTY_FILE PROPERTY_NAME...
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `PROPERTY_FILE` | Path to the ZooKeeper property file |
+| `PROPERTY_NAME` | One or more property names to update (reads from files) |
+
+### Behavior
+
+1. Reads each property value from `${PROFILER_FOLDER}/properties/${PROPERTY_NAME}`
+2. Updates the corresponding ZooKeeper node
+3. Agent automatically reloads configuration from ZooKeeper
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|--------|
+| `ZOOKEEPER_ENABLED` | Must be `true` to use this command | `false` |
+| `ZOOKEEPER_ADDRESS` | ZooKeeper connection string | Required |
+| `PROFILER_FOLDER` | Profiler configuration folder | `/app/ncdiag` |
+| `CLOUD_NAMESPACE` | Kubernetes namespace | Required |
+| `MICROSERVICE_NAME` | Microservice name | Required |
+
+### Examples
+
+```bash
+# Update single property
+diagtools zkConfig "${NC_DIAGNOSTIC_FOLDER}/zkproperties" NC_DIAGNOSTIC_ESC_ENABLED
+
+# Update multiple properties
+diagtools zkConfig /app/ncdiag/zkproperties esc.config NC_DIAGNOSTIC_ESC_ENABLED LOG_LEVEL
+```
+
+### Configuration Path
+
+Properties are stored in ZooKeeper at:
+```
+/config/{namespace}/{microservice}/esc.config
+```
+
+---
+
+## consulCfg
+
+Updates Qubership Profiler Agent configuration stored in HashiCorp Consul.
+
+### Usage
+
+```bash
+diagtools consulCfg PROPERTY_FILE PROPERTY_NAME...
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `PROPERTY_FILE` | Path to the property file |
+| `PROPERTY_NAME` | One or more property names to update (reads from files) |
+
+### Behavior
+
+1. Reads each property value from `${PROFILER_FOLDER}/properties/${PROPERTY_NAME}`
+2. Authenticates with Consul (if ACL enabled)
+3. Updates the Consul KV store
+4. Agent automatically reloads configuration from Consul
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|--------|
+| `CONSUL_ENABLED` | Enable Consul integration | `false` |
+| `CONSUL_URL` | Consul server URL | Required |
+| `PROFILER_FOLDER` | Profiler configuration folder | `/app/ncdiag` |
+| `IDP_URL` | Identity Provider URL for authentication | `http://identity-provider:8080` |
+
+### Examples
+
+```bash
+# Update configuration via Consul
+diagtools consulCfg "${NC_DIAGNOSTIC_FOLDER}/properties" esc.config NC_DIAGNOSTIC_ESC_ENABLED
+```
+
+---
+
+## serverCfg
+
+Updates Qubership Profiler Agent configuration stored in Spring Cloud Config Server.
+
+### Usage
+
+```bash
+diagtools serverCfg PROPERTY_FILE PROPERTY_NAME...
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `PROPERTY_FILE` | Path to the property file |
+| `PROPERTY_NAME` | One or more property names to update (reads from files) |
+
+### Behavior
+
+1. Reads each property value from `${PROFILER_FOLDER}/properties/${PROPERTY_NAME}`
+2. Authenticates with Config Server via IDP
+3. Updates configuration on Config Server
+4. Agent automatically reloads configuration from Config Server
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|--------|
+| `CONFIG_SERVER` | Config Server URL | Required (non-empty) |
+| `PROFILER_FOLDER` | Profiler configuration folder | `/app/ncdiag` |
+| `IDP_URL` | Identity Provider URL for authentication | `http://identity-provider:8080` |
+
+### Examples
+
+```bash
+# Update configuration via Config Server
+diagtools serverCfg "${NC_DIAGNOSTIC_FOLDER}/properties" esc.config NC_DIAGNOSTIC_ESC_ENABLED
+```
+
+---
+
+## Common Workflows
+
+### Manual Heap Dump for OOM Investigation
+
+```bash
+# Collect, compress, and upload heap dump
+diagtools heap zip upload
+```
+
+### Scheduled Monitoring
+
+```bash
+# Run continuous monitoring with 5-minute intervals
+DIAGNOSTIC_DUMP_INTERVAL=5m \
+DIAGNOSTIC_SCAN_INTERVAL=10m \
+KEEP_LOGS_INTERVAL=7 \
+diagtools schedule
+```
+
+### Collect All Diagnostic Data
+
+```bash
+# Collect thread dump and CPU usage
+diagtools dump
+
+# Collect heap dump
+diagtools heap zip
+
+# Upload everything
+diagtools scan "${NC_DIAGNOSTIC_LOGS_FOLDER}"/*.hprof* "${NC_DIAGNOSTIC_LOGS_FOLDER}"/*.td.txt "${NC_DIAGNOSTIC_LOGS_FOLDER}"/*.top.txt
+```
+
+### Update Configuration in Kubernetes
+
+```bash
+# 1. Create property file
+echo "true" > "${PROFILER_FOLDER}/properties/NC_DIAGNOSTIC_ESC_ENABLED"
+
+# 2. Update via ZooKeeper (if using ZooKeeper)
+diagtools zkConfig "${NC_DIAGNOSTIC_FOLDER}/zkproperties" NC_DIAGNOSTIC_ESC_ENABLED
+
+# OR update via Consul (if using Consul)
+diagtools consulCfg "${NC_DIAGNOSTIC_FOLDER}/properties" NC_DIAGNOSTIC_ESC_ENABLED
+
+# OR update via Config Server (if using Config Server)
+diagtools serverCfg "${NC_DIAGNOSTIC_FOLDER}/properties" NC_DIAGNOSTIC_ESC_ENABLED
+```
+
+## Logging
+
+All diagtools commands log to:
+```
+${NC_DIAGNOSTIC_LOGS_FOLDER}/log/diagtools_${COMMAND}.log
+```
+
+### Log Configuration
+
+| Environment Variable | Description | Default |
+|---------------------|-------------|--------|
+| `ESC_LOG_LEVEL` | Log level for diagtools | `info` |
+| `LOG_FILE_SIZE` | Max log file size in MB | `1` |
+| `LOG_FILE_BACKUPS` | Number of backup files | `5` |
+| `LOG_TO_CONSOLE` | Also print to console | `false` |
+
+## Exit Codes
+
+| Code | Meaning |
+|------|--------|
+| `0` | Success |
+| `1` | Error during execution |
+| `2` | Invalid arguments or usage |
+
+## Timeouts
+
+All commands have a 30-second timeout for graceful shutdown when interrupted.
+
+## Related Pages
+
+- [Environment Variables](/reference/environment-variables) - All environment variables
+- [CLI Commands](/reference/cli-commands) - Profiler CLI commands
+- [Agent Configuration](/reference/agent-configuration) - Agent configuration reference

@@ -1,0 +1,335 @@
+---
+title: Environment Variables Reference
+description: Complete reference for all environment variables used by Qubership Profiler Agent
+---
+
+This page documents all environment variables recognized by the Qubership Profiler Agent and diagtools.
+
+## Agent Environment Variables
+
+### Diagnostic Mode
+
+<ParamField path="NC_DIAGNOSTIC_MODE" type="string">
+  Enables cloud deployment diagnostic mode. When set, the agent operates in cloud-native mode with enhanced diagnostic capabilities.
+  
+  **Values:** Any non-empty value enables diagnostic mode  
+  **Default:** Not set (disabled)
+</ParamField>
+
+### Logging Configuration
+
+<ParamField path="LOG_LEVEL" type="string">
+  General log level for the application and agent.
+  
+  **Values:** `trace`, `debug`, `info`, `warn`, `error`  
+  **Default:** `info`
+</ParamField>
+
+<ParamField path="ESC_LOG_LEVEL" type="string">
+  Specific log level for ESC (Execution Statistics Collector) components.
+  
+  **Values:** `trace`, `debug`, `info`, `warn`, `error`  
+  **Default:** Inherits from `LOG_LEVEL`
+</ParamField>
+
+<ParamField path="ESC_LOG_FORMAT" type="string">
+  Custom log format for agent loggers using java.util.logging service.
+  
+  **Default:** Standard format
+</ParamField>
+
+<ParamField path="LOGBACK_CLOUD_AGENT_LOG_FORMAT" type="string">
+  Custom log format for agent loggers using Logback service.
+  
+  **Default:** Standard Logback format
+</ParamField>
+
+<ParamField path="LOG_FILE_SIZE" type="integer">
+  Maximum size of log files in megabytes before rotation.
+  
+  **Default:** `1` MB
+</ParamField>
+
+<ParamField path="LOG_FILE_BACKUPS" type="integer">
+  Number of rotated log file backups to keep.
+  
+  **Default:** `5`
+</ParamField>
+
+<ParamField path="LOG_TO_CONSOLE" type="boolean">
+  Whether to output logs to console in addition to files.
+  
+  **Values:** `true`, `false`  
+  **Default:** `false`
+</ParamField>
+
+<ParamField path="KEEP_LOGS_INTERVAL" type="integer">
+  Log retention interval in days. Logs older than this are automatically deleted.
+  
+  **Default:** `2` days
+</ParamField>
+
+## Diagnostic Tools Environment Variables
+
+### Folder Paths
+
+<ParamField path="NC_DIAGNOSTIC_FOLDER" type="string">
+  Path to the diagnostic data folder where dumps and diagnostic files are stored.
+  
+  **Default:** `/tmp/diagnostic`
+</ParamField>
+
+<ParamField path="NC_DIAGNOSTIC_LOGS_FOLDER" type="string">
+  Path to the folder where diagnostic logs are stored.
+  
+  **Default:** `/tmp/diagnostic`
+</ParamField>
+
+<ParamField path="PROFILER_FOLDER" type="string">
+  Path to the profiler installation folder containing configuration and properties.
+  
+  **Default:** `/app/ncdiag`
+</ParamField>
+
+### Dump Collection Settings
+
+<ParamField path="DIAGNOSTIC_CENTER_DUMPS_ENABLED" type="boolean">
+  Enables automatic heap dump collection after OutOfMemoryError events.
+  
+  **Values:** `true`, `false`  
+  **Default:** `true`
+</ParamField>
+
+<ParamField path="NC_DIAGNOSTIC_THREADDUMP_ENABLED" type="boolean">
+  Enables automatic thread dump collection by the scheduler.
+  
+  **Values:** `true`, `false`  
+  **Default:** `true`
+</ParamField>
+
+<ParamField path="NC_DIAGNOSTIC_TOP_ENABLED" type="boolean">
+  Enables automatic CPU usage collection (via `top` command) by the scheduler.
+  
+  **Values:** `true`, `false`  
+  **Default:** `true`
+</ParamField>
+
+<ParamField path="NC_DIAGNOSTIC_GC_ENABLED" type="boolean">
+  Enables automatic GC log collection by the scheduler.
+  
+  **Values:** `true`, `false`  
+  **Default:** `true`
+</ParamField>
+
+<ParamField path="NC_DIAGNOSTIC_JSTACK_LONG_LISTENING_ENABLED" type="boolean">
+  Enables the `-l` (long listing) option for jstack thread dumps. This provides more detailed lock information but may impact performance.
+  
+  **Values:** `true`, `false`  
+  **Default:** `false`
+</ParamField>
+
+<ParamField path="NC_HEAP_DUMP_COMPRESSION_LEVEL" type="integer">
+  Compression level for heap dump files.
+  
+  **Values:**
+  - `0` - No compression
+  - `1` - Best speed
+  - `9` - Best compression
+  - `-1` - Default compression
+  
+  **Default:** `-1`
+</ParamField>
+
+### Scheduling Intervals
+
+<ParamField path="DIAGNOSTIC_DUMP_INTERVAL" type="duration">
+  Interval between automatic dump collections when using `diagtools schedule`.
+  
+  **Format:** Go duration string (e.g., `1m`, `30s`, `2h`) or integer seconds  
+  **Default:** `1m` (1 minute)
+</ParamField>
+
+<ParamField path="DIAGNOSTIC_SCAN_INTERVAL" type="duration">
+  Interval between automatic scans for dump files when using `diagtools schedule`.
+  
+  **Format:** Go duration string (e.g., `1m`, `30s`, `2h`) or integer seconds  
+  **Default:** `1m` (1 minute)
+</ParamField>
+
+<ParamField path="DIAGNOSTIC_UPLOAD_TIMEOUT" type="duration">
+  HTTP client timeout for uploading dump files to the collector service.
+  
+  **Format:** Go duration string (e.g., `30m`, `1h`) or integer seconds  
+  **Default:** `5m` (5 minutes)
+</ParamField>
+
+### Service Configuration
+
+<ParamField path="NC_DIAGNOSTIC_AGENT_SERVICE" type="string">
+  Name or URL of the diagnostic agent service for uploading dumps.
+  
+  **Format:**
+  - Service name: `nc-diagnostic-agent`
+  - Full URL: `http://nc-diagnostic-agent.namespace:8080`
+  
+  **Default:** `nc-diagnostic-agent`
+</ParamField>
+
+<ParamField path="TLS_ENABLED" type="boolean">
+  Enables TLS/HTTPS for communication with the diagnostic agent service.
+  
+  **Values:** `true`, `false`  
+  **Default:** `false`
+</ParamField>
+
+### Kubernetes Environment
+
+<ParamField path="CLOUD_NAMESPACE" type="string">
+  Kubernetes namespace where the application is deployed. Required for cloud deployments.
+  
+  **Default:** Auto-detected from `/var/run/secrets/kubernetes.io/serviceaccount/namespace`
+</ParamField>
+
+<ParamField path="NAMESPACE" type="string">
+  Alternative namespace variable. Used if `CLOUD_NAMESPACE` is not set.
+  
+  **Default:** Not set
+</ParamField>
+
+<ParamField path="MICROSERVICE_NAME" type="string">
+  Name of the microservice being profiled. Required for cloud deployments.
+  
+  **Default:** Not set (must be provided)
+</ParamField>
+
+<ParamField path="SERVICE_NAME" type="string">
+  Alternative service name variable.
+  
+  **Default:** Not set
+</ParamField>
+
+## External Configuration Sources
+
+### ZooKeeper Integration
+
+<ParamField path="ZOOKEEPER_ENABLED" type="boolean">
+  Enables loading agent configuration from Apache ZooKeeper.
+  
+  **Values:** `true`, `false`  
+  **Default:** `false`
+</ParamField>
+
+<ParamField path="ZOOKEEPER_ADDRESS" type="string">
+  ZooKeeper connection string (host:port).
+  
+  **Example:** `zookeeper:2181`  
+  **Default:** Not set
+</ParamField>
+
+### Consul Integration
+
+<ParamField path="CONSUL_ENABLED" type="boolean">
+  Enables loading agent configuration from HashiCorp Consul.
+  
+  **Values:** `true`, `false`  
+  **Default:** `false`
+</ParamField>
+
+<ParamField path="CONSUL_URL" type="string">
+  Consul server URL. Setting this automatically enables Consul integration.
+  
+  **Example:** `http://consul:8500`  
+  **Default:** Not set
+</ParamField>
+
+### Spring Cloud Config Server
+
+<ParamField path="CONFIG_SERVER" type="string">
+  Spring Cloud Config Server URL. Setting this automatically enables Config Server integration.
+  
+  **Example:** `http://config-server:8888`  
+  **Default:** Not set
+</ParamField>
+
+<ParamField path="IDP_URL" type="string">
+  Identity Provider URL for authenticating with Config Server.
+  
+  **Example:** `http://identity-provider:8080`  
+  **Default:** `http://identity-provider:8080`
+</ParamField>
+
+## Environment Variable Priority
+
+When multiple sources provide the same configuration:
+
+1. **Environment variables** (highest priority)
+2. **Property files** (in `PROFILER_FOLDER/properties/`)
+3. **Default values** (lowest priority)
+
+For boolean properties, the diagtools checks:
+1. Property file: `${PROFILER_FOLDER}/properties/${PROPERTY_NAME}`
+2. Environment variable: `${PROPERTY_NAME}`
+3. Default value (usually `true` for features)
+
+## Usage Examples
+
+### Docker Compose
+
+```yaml
+services:
+  app:
+    image: my-app:latest
+    environment:
+      - NC_DIAGNOSTIC_MODE=true
+      - LOG_LEVEL=debug
+      - DIAGNOSTIC_CENTER_DUMPS_ENABLED=true
+      - NC_DIAGNOSTIC_AGENT_SERVICE=http://diagnostic-agent:8080
+      - CLOUD_NAMESPACE=production
+      - MICROSERVICE_NAME=user-service
+      - ZOOKEEPER_ENABLED=true
+      - ZOOKEEPER_ADDRESS=zookeeper:2181
+```
+
+### Kubernetes Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  template:
+    spec:
+      containers:
+      - name: app
+        env:
+        - name: NC_DIAGNOSTIC_MODE
+          value: "true"
+        - name: LOG_LEVEL
+          value: info
+        - name: DIAGNOSTIC_DUMP_INTERVAL
+          value: 5m
+        - name: NC_HEAP_DUMP_COMPRESSION_LEVEL
+          value: "9"
+        - name: TLS_ENABLED
+          value: "true"
+```
+
+### Shell Script
+
+```bash
+export NC_DIAGNOSTIC_MODE=true
+export LOG_LEVEL=info
+export PROFILER_FOLDER=/opt/profiler
+export NC_DIAGNOSTIC_LOGS_FOLDER=/var/log/profiler
+export DIAGNOSTIC_DUMP_INTERVAL=2m
+export CONFIG_SERVER=http://localhost:8888
+
+java -javaagent:profiler-agent.jar -jar app.jar
+```
+
+## Related Pages
+
+- [Agent Configuration](/reference/agent-configuration) - Agent configuration reference
+- [Diagtools Commands](/reference/diagtools-commands) - Diagnostic tools reference
+- [CLI Commands](/reference/cli-commands) - Command-line interface reference

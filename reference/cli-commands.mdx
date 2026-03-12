@@ -1,0 +1,409 @@
+---
+title: CLI Commands Reference
+description: Complete reference for Qubership Profiler CLI commands
+---
+
+The Qubership Profiler CLI (`esc-cmd.sh`) provides command-line tools for working with profiler dumps, exporting data, and analyzing performance.
+
+## Global Options
+
+All commands support these global options:
+
+| Option | Description | Default |
+|--------|-------------|--------|
+| `-v, --verbose` | Enable verbose output (use `-v -v` for more verbose) | INFO level |
+| `-h, --help` | Show help message | - |
+
+## Commands Overview
+
+| Command | Description |
+|---------|-------------|
+| [list-servers](#list-servers) | List valid server names for export-dump command |
+| [export-dump](#export-dump) | Export collected data for a time-frame to archive |
+| [export-excel](#export-excel) | Export profiler calls to Excel format |
+| [download-dump](#download-dump) | Download collected data from remote server |
+| [export-inflight-calls](#export-inflight-calls) | Export in-flight calls to Excel |
+| [dump-calls](#dump-calls) | Dump profiler calls to text (TSV) |
+| [dump-trace](#dump-trace) | Dump raw trace events to text (TSV) |
+| [repair-profiler](#repair-profiler) | Repair anonymized profiler HTML page |
+
+---
+
+## list-servers
+
+Lists all valid server names found in the profiler dump directory.
+
+### Usage
+
+```bash
+esc-cmd.sh list-servers [OPTIONS]
+```
+
+### Options
+
+| Option | Description | Default |
+|--------|-------------|--------|
+| `-r, --dump-root PATH` | Root folder to gather collected data from | `execution-statistics-collector/dump` |
+
+### Example
+
+```bash
+esc-cmd.sh list-servers -r /opt/profiler/dump
+```
+
+---
+
+## export-dump
+
+Exports the collected profiling data for a specified time-frame to a separate archive file.
+
+### Usage
+
+```bash
+esc-cmd.sh export-dump [OPTIONS] [OUTPUT_FILE]
+```
+
+### Options
+
+| Option | Type | Description | Default |
+|--------|------|-------------|--------|
+| `OUTPUT_FILE` | string | Name of the output archive file | `export.zip` |
+| `-s, --start-date DATE` | string | Start timestamp of the export time-frame | `1hour` |
+| `-e, --end-date DATE` | string | End timestamp of the export time-frame | `now` |
+| `-z, --time-zone ZONE` | string | Time zone for timestamp arguments | System default |
+| `-n, --server NAME` | string | Export data for specific server (repeatable) | All servers |
+| `-d, --dry-run` | flag | Skip export, just scan and print estimated size | `false` |
+| `-q, --skip-details` | flag | Export only high-level info, skip profiling trees | `false` |
+| `-r, --dump-root PATH` | string | Root folder to gather collected data from | Auto-detect |
+
+### Date Format
+
+Valid formats for date arguments:
+
+- **Relative:** `5h30min` (5 hours 30 minutes ago)
+- **Full:** `YYYY-MM-DD HH24:MI`
+- **Partial:** `MM-DD HH24:MI` or `HH24:MI`
+- **Unix timestamp:** Seconds or milliseconds since 1970
+- **Keywords:** `now`
+
+### Examples
+
+```bash
+# Export last hour to default file
+esc-cmd.sh export-dump
+
+# Export specific time range
+esc-cmd.sh export-dump -s "2026-03-12 10:00" -e "2026-03-12 12:00" report.zip
+
+# Export for specific server, dry run
+esc-cmd.sh export-dump -n server-01 -d
+
+# Export last 2 hours, skip details
+esc-cmd.sh export-dump -s 2hour -q
+```
+
+---
+
+## export-excel
+
+Exports profiler calls for the specified time-frame to Excel format, with optional aggregation and filtering.
+
+### Usage
+
+```bash
+esc-cmd.sh export-excel [OPTIONS] [OUTPUT_FILE]
+```
+
+### Options
+
+| Option | Type | Description | Default |
+|--------|------|-------------|--------|
+| `OUTPUT_FILE` | string | Name of the output Excel file | `export.xlsx` |
+| `-s, --start-date DATE` | string | Start timestamp of the export time-frame | `1hour` |
+| `-e, --end-date DATE` | string | End timestamp of the export time-frame | `now` |
+| `-z, --time-zone ZONE` | string | Time zone for timestamp arguments | System default |
+| `-n, --server NAME` | string | Export data for specific server (repeatable) | All servers |
+| `-a, --aggregate` | flag | Generate aggregate report instead of all calls | `false` |
+| `-d, --min-duration MS` | integer | Minimum call duration in milliseconds | `500` |
+| `-md, --min-digits-in-id NUM` | integer | Min digits in URL part to consider as ID (-1 to disable) | `4` |
+| `-du, --disable-default-url-replace-patterns` | flag | Disable default URL replacement patterns | `false` |
+| `-ur, --url-replace-pattern PATTERN` | string | Custom URL replace pattern (repeatable) | - |
+| `-r, --dump-root PATH` | string | Root folder to gather collected data from | Auto-detect |
+
+### URL Replace Patterns
+
+Patterns for replacing IDs in URLs:
+
+- `*` - Matches everything except `/`
+- `**` - Matches everything including `/`
+- `$id$` - Like `*`, but matched symbols replaced with `$id$`
+
+**Examples:**
+- `/api/csrd/threesixty/$id$/*`
+- `**/wfm/appointment/$id$/*`
+
+### Examples
+
+```bash
+# Basic export with default filtering
+esc-cmd.sh export-excel calls.xlsx
+
+# Aggregate report for last 4 hours
+esc-cmd.sh export-excel -a -s 4hour aggregate.xlsx
+
+# Export calls > 1 second with custom ID pattern
+esc-cmd.sh export-excel -d 1000 -ur '/api/users/$id$/*' report.xlsx
+
+# Export for specific server without default patterns
+esc-cmd.sh export-excel -n app-server -du -ur '/custom/$id$/path' report.xlsx
+```
+
+---
+
+## download-dump
+
+Downloads the collected profiling data from a remote server via SSH/SFTP/SCP.
+
+### Usage
+
+```bash
+esc-cmd.sh download-dump [OPTIONS] [OUTPUT_FOLDER]
+```
+
+### Options
+
+| Option | Type | Description | Default |
+|--------|------|-------------|--------|
+| `OUTPUT_FOLDER` | string | Target folder to download dump to | Current directory |
+| `-s, --start-date DATE` | string | Start timestamp of the export time-frame | `1hour` |
+| `-e, --end-date DATE` | string | End timestamp of the export time-frame | `now` |
+| `-z, --time-zone ZONE` | string | Time zone for timestamp arguments | System default |
+| `-n, --server NAME` | string | Download data for specific server (repeatable) | All servers |
+| `-d, --dry-run` | flag | Skip download, just scan and print estimated size | `false` |
+| `-q, --skip-details` | flag | Download only high-level info, skip profiling trees | `false` |
+| `-r, --dump-root PATH` | string | Root folder on remote server | Auto-detect |
+| `-rh, --host HOST` | string | **Required.** Remote host for SSH connection | - |
+| `-u, --user USER` | string | **Required.** Username for SSH connection | - |
+| `-p, --password PASSWORD` | string | Password for SSH connection (prompts if not set) | - |
+| `-pd, --parallel DEGREE` | integer | Parallel download degree (max 10) | `1` |
+| `-sh, --shell COMMAND` | string | Init shell command after SSH session | - |
+| `-dp, --download-protocol PROTOCOL` | string | Download protocol (`SFTP` or `SCP`) | `SFTP` |
+
+### Examples
+
+```bash
+# Download last hour from remote server
+esc-cmd.sh download-dump -rh prod-server.example.com -u admin /tmp/dumps
+
+# Download with parallel transfers
+esc-cmd.sh download-dump -rh 192.168.1.100 -u profiler -p secret -pd 5
+
+# Download using SCP and sudo
+esc-cmd.sh download-dump -rh server -u user -sh "sudo su - profiler" -dp SCP
+
+# Dry run to check size
+esc-cmd.sh download-dump -rh server -u admin -d
+```
+
+---
+
+## export-inflight-calls
+
+Scans trace files and exports in-flight calls (calls that haven't completed) to Excel.
+
+**Aliases:** `export-inflights`, `export-ic`
+
+### Usage
+
+```bash
+esc-cmd.sh export-inflight-calls [OPTIONS] [OUTPUT_FILE]
+```
+
+### Options
+
+| Option | Type | Description | Default |
+|--------|------|-------------|--------|
+| `OUTPUT_FILE` | string | Name of the output Excel file | `inflight-calls.xlsx` |
+| `-s, --start-date DATE` | string | **Required.** Start timestamp to scan trace files | - |
+| `-z, --time-zone ZONE` | string | Time zone for timestamp arguments | System default |
+| `-n, --server NAME` | string | **Required.** Server name to export from | - |
+| `-r, --dump-root PATH` | string | Root folder to gather collected data from | Auto-detect |
+
+### Examples
+
+```bash
+# Export in-flight calls from specific timestamp
+esc-cmd.sh export-ic -s "2026-03-12 14:30" -n app-server-01
+
+# Export with custom timezone
+esc-cmd.sh export-inflight-calls -s "03-12 14:30" -z "America/New_York" -n server-01 inflights.xlsx
+```
+
+---
+
+## dump-calls
+
+Dumps profiler calls to text format (TSV) for analysis with external tools.
+
+### Usage
+
+```bash
+esc-cmd.sh dump-calls [OPTIONS] [OUTPUT_FILE]
+```
+
+### Options
+
+| Option | Type | Description | Default |
+|--------|------|-------------|--------|
+| `OUTPUT_FILE` | string | Target file path, or `-` for stdout | `-` (stdout) |
+| `-s, --start-date DATE` | string | Start timestamp of the export time-frame | `1hour` |
+| `-e, --end-date DATE` | string | End timestamp of the export time-frame | `now` |
+| `-z, --time-zone ZONE` | string | Time zone for timestamp arguments | System default |
+| `-n, --server NAME` | string | Dump calls for specific server (repeatable) | All servers |
+| `-d, --min-duration MS` | integer | Minimum call duration in milliseconds | `0` |
+| `-D, --max-duration MS` | integer | Maximum call duration in milliseconds | No limit |
+| `-m, --method-contains TEXT` | string | Only print calls whose method contains substring | - |
+| `-p, --include-params` | flag | Include call parameters in the output | `false` |
+| `-r, --dump-root PATH` | string | Root folder to gather collected data from | Auto-detect |
+
+### Examples
+
+```bash
+# Dump all calls to stdout
+esc-cmd.sh dump-calls
+
+# Dump calls > 1 second to file
+esc-cmd.sh dump-calls -d 1000 slow-calls.tsv
+
+# Dump calls containing "processOrder" with parameters
+esc-cmd.sh dump-calls -m processOrder -p orders.tsv
+
+# Dump calls in specific duration range
+esc-cmd.sh dump-calls -d 500 -D 2000 moderate-calls.tsv
+```
+
+---
+
+## dump-trace
+
+Dumps raw trace events to text format (TSV) for low-level analysis.
+
+### Usage
+
+```bash
+esc-cmd.sh dump-trace [OPTIONS] [OUTPUT_FILE]
+```
+
+### Options
+
+| Option | Type | Description | Default |
+|--------|------|-------------|--------|
+| `OUTPUT_FILE` | string | Target file path, or `-` for stdout | `-` (stdout) |
+| `-s, --start-date DATE` | string | Start timestamp of the export time-frame | `1hour` |
+| `-e, --end-date DATE` | string | End timestamp of the export time-frame | `now` |
+| `-z, --time-zone ZONE` | string | Time zone for timestamp arguments | System default |
+| `-n, --server NAME` | string | Dump trace for specific server (repeatable) | All servers |
+| `-c, --contains TEXT` | string | Only print events whose tag or value contains substring | - |
+| `-r, --dump-root PATH` | string | Root folder to gather collected data from | Auto-detect |
+
+### Examples
+
+```bash
+# Dump all trace events to stdout
+esc-cmd.sh dump-trace
+
+# Dump trace events containing "SQL"
+esc-cmd.sh dump-trace -c SQL sql-trace.tsv
+
+# Dump trace for specific server and time range
+esc-cmd.sh dump-trace -n server-01 -s "14:00" -e "15:00" trace.tsv
+```
+
+---
+
+## repair-profiler
+
+Repairs the static content of an anonymized profiler HTML page. Tree data won't be repaired if it's broken.
+
+### Usage
+
+```bash
+esc-cmd.sh repair-profiler INPUT_FILE [OUTPUT_FILE]
+```
+
+### Arguments
+
+| Argument | Type | Description | Default |
+|----------|------|-------------|--------|
+| `INPUT_FILE` | string | **Required.** Name of the input HTML file | - |
+| `OUTPUT_FILE` | string | Name of the output file | `repaired.html` |
+
+### Examples
+
+```bash
+# Repair profiler HTML with default output name
+esc-cmd.sh repair-profiler broken.html
+
+# Repair with custom output name
+esc-cmd.sh repair-profiler broken.html fixed.html
+```
+
+---
+
+## Common Workflows
+
+### Export and Analyze Performance Issues
+
+```bash
+# 1. List available servers
+esc-cmd.sh list-servers
+
+# 2. Export slow calls to Excel
+esc-cmd.sh export-excel -n app-server-01 -d 2000 -s 6hour slow-calls.xlsx
+
+# 3. Export full dump for detailed analysis
+esc-cmd.sh export-dump -n app-server-01 -s 6hour analysis.zip
+```
+
+### Remote Troubleshooting
+
+```bash
+# 1. Download dumps from production server
+esc-cmd.sh download-dump \
+  -rh prod-server.example.com \
+  -u profiler \
+  -pd 5 \
+  -s 1hour \
+  /tmp/prod-dumps
+
+# 2. Export in-flight calls to check for hangs
+esc-cmd.sh export-ic \
+  -r /tmp/prod-dumps \
+  -s "2026-03-12 14:30" \
+  -n prod-server-01 \
+  hangs.xlsx
+```
+
+### Bulk Data Export
+
+```bash
+# Export aggregate reports for all servers
+for server in $(esc-cmd.sh list-servers | tail -n +2); do
+  echo "Exporting $server..."
+  esc-cmd.sh export-excel -n "$server" -a -s 24hour "${server}_aggregate.xlsx"
+done
+```
+
+## Exit Codes
+
+| Code | Meaning |
+|------|--------|
+| `0` | Success |
+| `1` | General error |
+| `2` | Invalid arguments |
+
+## Related Pages
+
+- [Diagtools Commands](/reference/diagtools-commands) - Diagnostic tools reference
+- [Environment Variables](/reference/environment-variables) - Environment variables reference
+- [Agent Configuration](/reference/agent-configuration) - Agent configuration reference

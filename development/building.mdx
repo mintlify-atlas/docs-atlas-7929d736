@@ -1,0 +1,178 @@
+---
+title: Building from Source
+description: Learn how to build Qubership Profiler Agent from source code
+---
+
+This guide covers building the Qubership Profiler Agent from source code using Gradle.
+
+## Prerequisites
+
+Before building the project, ensure you have the following:
+
+- **Java 17 or Java 21** - Required for building the project
+- **Git** - For cloning the repository
+
+<Note>
+  The project requires Java 17 or 21 for launching Gradle. Other versions are not supported.
+</Note>
+
+## Clone the Repository
+
+First, clone the Qubership Profiler Agent repository:
+
+```bash
+git clone https://github.com/Netcracker/qubership-profiler-agent.git
+cd qubership-profiler-agent
+```
+
+## Build Commands
+
+### Build Everything
+
+To build all artifacts and execute tests:
+
+```bash
+./gradlew build
+```
+
+This command will:
+- Compile all source code
+- Run unit tests
+- Package the agent and all plugins
+- Generate artifacts
+
+### List Available Tasks
+
+To see all available Gradle tasks:
+
+```bash
+./gradlew tasks
+```
+
+### View Build Parameters
+
+To display build parameters (flags starting with `-P`) that can be used to customize the build:
+
+```bash
+./gradlew parameters
+```
+
+## Project Structure
+
+The project uses a multi-module Gradle build with the following key modules:
+
+- **agent** - Core profiling agent
+- **boot** - Bootstrap components
+- **common** - Shared utilities
+- **cli** - Command-line interface
+- **installer** - Installation tools
+- **instrumenter** - Bytecode instrumentation
+- **plugin-generator** - Plugin generation tools
+- **plugin-runtime** - Plugin runtime API
+- **plugins/** - Individual instrumentation plugins
+- **runtime** - Agent runtime
+- **web** - Web interface
+
+## Build System
+
+The project uses **Gradle** with Kotlin DSL for build configuration.
+
+### Key Build Files
+
+#### build.gradle.kts
+
+The root build file configures:
+- Project version and group ID
+- JaCoCo code coverage (version 0.8.14)
+- IDE integration via `com.github.vlsi.ide` plugin
+- Common dependencies and plugins
+
+#### settings.gradle.kts
+
+Defines:
+- Project name: `qubership-profiler`
+- Plugin management and versions
+- All included modules
+- Java version validation
+
+<Info>
+  The build system uses type-safe project accessors for better IDE support and compile-time validation.
+</Info>
+
+### Build Logic
+
+The project uses convention plugins defined in `build-logic/` to share common build configuration:
+
+- `build-logic.java-published-library` - For libraries published to Maven Central
+- `build-logic.profiler-published-plugin` - For profiler plugins
+- `build-logic.test-junit5` - JUnit 5 testing configuration
+- `build-logic.kotlin` - Kotlin support
+
+## Version Information
+
+The build version is constructed from:
+- Base version from `gradle.properties`
+- `-SNAPSHOT` suffix for non-release builds
+
+Example output:
+```
+Building Profiler 1.2.3-SNAPSHOT
+```
+
+## Code Coverage
+
+The project includes JaCoCo for code coverage reporting:
+
+```bash
+./gradlew jacocoReport
+```
+
+This generates an aggregate coverage report from all subprojects.
+
+## Troubleshooting
+
+### Java Version Issues
+
+If you encounter Java version errors:
+
+<CodeGroup>
+```bash Error
+Please use Java 17 or 21 for launching Gradle when building profiler, the current Java is 11
+```
+
+```bash Solution
+# Set JAVA_HOME to Java 17 or 21
+export JAVA_HOME=/path/to/java-17
+./gradlew build
+```
+</CodeGroup>
+
+### Build Failures
+
+For build failures:
+
+1. Clean the build directory:
+   ```bash
+   ./gradlew clean
+   ```
+
+2. Rebuild with stacktrace:
+   ```bash
+   ./gradlew build --stacktrace
+   ```
+
+3. Use info logging for more details:
+   ```bash
+   ./gradlew build --info
+   ```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Plugin Development" icon="plug" href="/development/plugin-development">
+    Learn how to develop custom instrumentation plugins
+  </Card>
+  <Card title="Contributing" icon="code-pull-request" href="/development/contributing">
+    Read the contribution guidelines
+  </Card>
+</CardGroup>

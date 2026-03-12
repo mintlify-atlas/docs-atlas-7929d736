@@ -1,122 +1,80 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Qubership Profiler Agent",
+  "theme": "aspen",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#f5e6de",
+    "light": "#8c7c7c",
+    "dark": "#4f4a47"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "/favicon.png",
+  "logo": {
+    "light": "/logo.png",
+    "dark": "/logo.png"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/Netcracker/qubership-profiler-agent"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/Netcracker/qubership-profiler-agent"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
-            "pages": [
-              "index",
-              "quickstart",
-              "development"
-            ]
+            "group": "Get Started",
+            "pages": ["introduction", "quickstart", "installation"]
           },
           {
-            "group": "Customization",
-            "pages": [
-              "essentials/settings",
-              "essentials/navigation"
-            ]
+            "group": "Architecture",
+            "pages": ["architecture/overview", "architecture/agent", "architecture/profiler", "architecture/plugins"]
           },
           {
-            "group": "Writing content",
-            "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
+            "group": "Setup & Configuration",
+            "pages": ["setup/agent-setup", "setup/configuration", "setup/deployment"]
           },
           {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
-            ]
+            "group": "Plugins",
+            "pages": ["plugins/overview", "plugins/databases", "plugins/http-clients", "plugins/frameworks", "plugins/messaging", "plugins/distributed-tracing"]
+          },
+          {
+            "group": "Operations",
+            "pages": ["operations/cli-tools", "operations/diagnostic-tools", "operations/monitoring", "operations/troubleshooting"]
+          },
+          {
+            "group": "Integration",
+            "pages": ["integration/distributed-tracing", "integration/data-collection", "integration/web-ui"]
+          },
+          {
+            "group": "Development",
+            "pages": ["development/building", "development/plugin-development", "development/contributing"]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "Reference",
         "groups": [
           {
-            "group": "API documentation",
-            "pages": [
-              "api-reference/introduction"
-            ]
+            "group": "Configuration",
+            "pages": ["reference/agent-configuration", "reference/environment-variables"]
           },
           {
-            "group": "Endpoint examples",
-            "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
-            ]
+            "group": "CLI Commands",
+            "pages": ["reference/cli-commands", "reference/diagtools-commands"]
+          },
+          {
+            "group": "Plugin Reference",
+            "pages": ["reference/plugin-list", "reference/supported-versions"]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

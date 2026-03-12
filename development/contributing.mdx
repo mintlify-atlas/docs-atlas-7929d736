@@ -1,0 +1,352 @@
+---
+title: Contributing Guidelines
+description: How to contribute to Qubership Profiler Agent
+---
+
+We welcome contributions to the Qubership Profiler Agent project. This guide will help you get started with contributing.
+
+## Before You Start
+
+Please make sure to read and follow these important documents:
+
+- [Code of Conduct](https://github.com/Netcracker/qubership-profiler-agent/blob/main/CODE-OF-CONDUCT.md)
+- [Contributor License Agreement](https://pages.netcracker.com/cla-main.html)
+
+## Contributor License Agreement
+
+<Warning>
+  You **must** sign the [Contributor License Agreement (CLA)](https://pages.netcracker.com/cla-main.html) before your contributions can be accepted.
+</Warning>
+
+The CLA ensures that:
+- You have the right to contribute the code
+- The project can use and distribute your contributions
+- The community benefits from your work
+
+## Code of Conduct
+
+This project follows a comprehensive Code of Conduct to ensure a welcoming, safe, and productive community for all participants.
+
+### Core Values
+
+We put **collaboration**, **trust**, **respect**, and **transparency** as core values for our community.
+
+### Expected Behavior
+
+<Check>**Do:**</Check>
+- Be respectful of different ideas, opinions, and points of view
+- Be constructive and professional
+- Use inclusive language
+- Be collaborative and show empathy
+- Focus on the best results for the community
+
+<Warning>**Don't:**</Warning>
+- Use violence, threats, or incite self-harm
+- Make personal attacks, troll, or spread misinformation
+- Harass others publicly or privately
+- Share others' private information without permission
+- Use derogatory language
+- Encourage unacceptable behavior
+
+### Diversity and Inclusion
+
+Our community welcomes participants from all over the world with different experiences, opinions, and ideas to share. All people should feel safe to participate regardless of:
+
+- Age, Gender, Gender identity or expression
+- Family status, Marital status
+- Ability, Ethnicity, Race
+- Sex characteristics, Sexual identity and orientation
+- Education, Native language
+- Background, Caste, Religion
+- Geographic location, Socioeconomic status
+- Personal appearance
+- Any other dimension of diversity
+
+### Reporting Issues
+
+If you experience or observe unacceptable behavior:
+
+<Steps>
+  <Step title="Document the incident">
+    Note what happened, when, and who was involved
+  </Step>
+  <Step title="Report to maintainers">
+    Email: [opensourcegroup@netcracker.com](mailto:opensourcegroup@netcracker.com)
+  </Step>
+  <Step title="Maintain confidentiality">
+    All complaints will be reviewed confidentially
+  </Step>
+</Steps>
+
+Project maintainers are obligated to maintain confidentiality with regard to the reporter of an incident.
+
+## How to Contribute
+
+### 1. Find Something to Work On
+
+You can contribute by:
+
+- Fixing bugs reported in [Issues](https://github.com/Netcracker/qubership-profiler-agent/issues)
+- Adding new instrumentation plugins for libraries/frameworks
+- Improving documentation
+- Enhancing test coverage
+- Optimizing performance
+
+### 2. Fork and Clone
+
+```bash
+# Fork the repository on GitHub
+# Then clone your fork
+git clone https://github.com/YOUR_USERNAME/qubership-profiler-agent.git
+cd qubership-profiler-agent
+
+# Add upstream remote
+git remote add upstream https://github.com/Netcracker/qubership-profiler-agent.git
+```
+
+### 3. Create a Branch
+
+```bash
+# Update your local main branch
+git checkout main
+git pull upstream main
+
+# Create a feature branch
+git checkout -b feature/my-new-feature
+```
+
+<Info>
+  Use descriptive branch names like `feature/add-redis-plugin` or `fix/memory-leak-in-instrumenter`.
+</Info>
+
+### 4. Make Your Changes
+
+- Follow the existing code style
+- Add tests for new functionality
+- Update documentation as needed
+- Keep commits focused and atomic
+
+### 5. Test Your Changes
+
+```bash
+# Run all tests
+./gradlew build
+
+# Run tests for specific module
+./gradlew :plugins:myplugin:test
+
+# Check code coverage
+./gradlew jacocoReport
+```
+
+### 6. Commit Your Changes
+
+Write clear, descriptive commit messages:
+
+```bash
+git add .
+git commit -m "Add instrumentation plugin for Redis
+
+- Implement RedisPlugin for Jedis client
+- Add tests for connection tracking
+- Document plugin configuration"
+```
+
+<Note>
+  Follow the [Conventional Commits](https://www.conventionalcommits.org/) style when possible.
+</Note>
+
+### 7. Push and Create Pull Request
+
+```bash
+# Push to your fork
+git push origin feature/my-new-feature
+```
+
+Then:
+1. Go to the GitHub repository
+2. Click "New Pull Request"
+3. Select your branch
+4. Fill out the pull request template
+5. Submit for review
+
+## Pull Request Guidelines
+
+### PR Title
+
+Use clear, descriptive titles:
+- `Add Redis instrumentation plugin`
+- `Fix memory leak in ClassEnhancer`
+- `Update build documentation`
+
+### PR Description
+
+Include:
+
+<AccordionGroup>
+  <Accordion title="What changed">
+    Describe the changes you made and why
+  </Accordion>
+  <Accordion title="How to test">
+    Provide steps to verify the changes work
+  </Accordion>
+  <Accordion title="Related issues">
+    Link to related issues using `Fixes #123` or `Relates to #456`
+  </Accordion>
+  <Accordion title="Checklist">
+    - [ ] Tests added/updated
+    - [ ] Documentation updated
+    - [ ] CLA signed
+    - [ ] Code follows project style
+  </Accordion>
+</AccordionGroup>
+
+### Code Review Process
+
+1. **Automated Checks**: CI builds and tests run automatically
+2. **Maintainer Review**: Project maintainers review the code
+3. **Feedback**: Address any requested changes
+4. **Approval**: Once approved, maintainers will merge
+
+## Coding Standards
+
+### Java Code Style
+
+- Use 4 spaces for indentation (not tabs)
+- Follow Java naming conventions
+- Keep methods focused and small
+- Add Javadoc for public APIs
+- Use meaningful variable names
+
+### Plugin Development
+
+- Follow the [Plugin Development Guide](/development/plugin-development)
+- Name plugin classes as `EnhancerPlugin_<name>`
+- Add comprehensive tests
+- Document configuration options
+- Include README.md in plugin directory
+
+### Testing
+
+- Write unit tests for new functionality
+- Ensure tests are deterministic
+- Use descriptive test names
+- Aim for high code coverage
+
+### Documentation
+
+- Update relevant documentation
+- Add code comments for complex logic
+- Include examples where helpful
+- Keep README files up to date
+
+## Development Workflow
+
+### Setting Up Development Environment
+
+```bash
+# Install Java 17 or 21
+# Clone repository
+git clone https://github.com/Netcracker/qubership-profiler-agent.git
+cd qubership-profiler-agent
+
+# Build project
+./gradlew build
+
+# Import into IDE (IntelliJ IDEA recommended)
+```
+
+### Running Tests
+
+```bash
+# All tests
+./gradlew test
+
+# Specific module
+./gradlew :agent:test
+
+# With coverage
+./gradlew test jacocoReport
+```
+
+### Local Testing
+
+Test your changes with a sample application:
+
+```bash
+# Build agent
+./gradlew :agent:build
+
+# Run with your application
+java -javaagent:agent/build/libs/profiler-agent.jar \
+     -jar your-app.jar
+```
+
+## Release Process
+
+<Note>
+  Only maintainers can create releases. This section is for informational purposes.
+</Note>
+
+Releases are managed through GitHub Actions:
+
+1. Navigate to [Release Workflow](https://github.com/Netcracker/qubership-profiler-agent/actions/workflows/release.yaml)
+2. Click "Run workflow"
+3. Select branch and version
+4. Workflow builds and publishes to Maven Central
+5. Creates GitHub release with generated notes
+
+The workflow:
+- Checks that the release tag doesn't exist
+- Updates version in `gradle.properties`
+- Builds and publishes artifacts
+- Creates release tag
+- Bumps to next version
+
+## Getting Help
+
+### Communication Channels
+
+- **GitHub Issues**: Bug reports and feature requests
+- **GitHub Discussions**: Questions and community support
+- **Pull Requests**: Code contributions and reviews
+
+### Resources
+
+<CardGroup cols={2}>
+  <Card title="Building from Source" icon="hammer" href="/development/building">
+    Learn how to build the project
+  </Card>
+  <Card title="Plugin Development" icon="plug" href="/development/plugin-development">
+    Create custom plugins
+  </Card>
+  <Card title="GitHub Repository" icon="github" href="https://github.com/Netcracker/qubership-profiler-agent">
+    View source code
+  </Card>
+  <Card title="Issue Tracker" icon="bug" href="https://github.com/Netcracker/qubership-profiler-agent/issues">
+    Report bugs or request features
+  </Card>
+</CardGroup>
+
+## Recognition
+
+We value all contributions to the project. Contributors will be:
+- Listed in release notes
+- Credited in the project
+- Part of the community
+
+Thank you for helping make Qubership Profiler Agent better!
+
+## Questions?
+
+If you have questions about contributing:
+
+1. Check existing [GitHub Issues](https://github.com/Netcracker/qubership-profiler-agent/issues)
+2. Review [GitHub Discussions](https://github.com/Netcracker/qubership-profiler-agent/discussions)
+3. Contact maintainers at [opensourcegroup@netcracker.com](mailto:opensourcegroup@netcracker.com)
+
+---
+
+<Info>
+  By contributing to this project, you agree to abide by its Code of Conduct and sign the Contributor License Agreement.
+</Info>

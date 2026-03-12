@@ -1,0 +1,430 @@
+---
+title: Framework Plugins
+description: Framework instrumentation plugins for Spring, Apache Felix, Equinox, and Liferay
+---
+
+## Overview
+
+The Qubership Profiler Agent provides instrumentation for popular Java frameworks and application platforms. These plugins help you monitor framework-specific operations, lifecycle events, and interactions.
+
+## Available Framework Plugins
+
+<CardGroup cols={2}>
+  <Card title="Spring Framework" icon="leaf">
+    Instrumentation for Spring Framework and Spring REST
+  </Card>
+  <Card title="Apache Felix" icon="cubes">
+    OSGi framework instrumentation for Apache Felix
+  </Card>
+  <Card title="Eclipse Equinox" icon="cubes">
+    OSGi framework instrumentation for Equinox
+  </Card>
+  <Card title="Liferay Portal" icon="building">
+    Liferay portal and portlet instrumentation
+  </Card>
+</CardGroup>
+
+## Spring Framework
+
+The profiler provides comprehensive instrumentation for Spring Framework applications.
+
+### Spring Core Plugin
+
+**Module**: `plugins:spring`
+
+**Description**: Instruments core Spring Framework functionality including bean lifecycle, AOP, and context management.
+
+**Configuration**: `config/minimal/50main/spring.xml`
+
+#### Capabilities
+
+<Tabs>
+  <Tab title="Bean Management">
+    - Bean creation and initialization
+    - Dependency injection
+    - Bean lifecycle events
+    - Proxy creation
+    - Factory bean operations
+  </Tab>
+  <Tab title="AOP">
+    - Aspect execution
+    - Advice invocation
+    - Pointcut evaluation
+    - Interceptor chains
+  </Tab>
+  <Tab title="Context">
+    - Application context initialization
+    - Context refresh events
+    - Event publishing and listening
+    - Resource loading
+  </Tab>
+  <Tab title="Transactions">
+    - Transaction boundaries
+    - Commit/rollback operations
+    - Transaction propagation
+    - Isolation levels
+  </Tab>
+</Tabs>
+
+#### What's Captured
+
+- Bean names and classes
+- Method invocation timing
+- Transaction context
+- Exception details
+- AOP advice execution
+- Event propagation
+
+### Spring REST Plugin
+
+**Module**: `plugins:springrest`
+
+**Description**: Instruments Spring REST controllers and request handling.
+
+**Configuration**: `config/minimal/50main/springrest.xml`
+
+#### Features
+
+- `@RestController` method invocations
+- `@RequestMapping` endpoints
+- Request parameter binding
+- Response body serialization
+- Exception handling (`@ExceptionHandler`)
+- Interceptor execution
+
+#### REST Operations Captured
+
+| Operation | Captured Data |
+|-----------|---------------|
+| Controller Methods | Endpoint path, HTTP method, parameters, response |
+| Request Mapping | URL patterns, HTTP methods, consumes/produces |
+| Model Binding | Request parameters, path variables, request body |
+| Response Handling | Response status, headers, body serialization |
+| Error Handling | Exception type, error handler, error response |
+
+### Spring Boot Integration
+
+The Spring plugins work seamlessly with Spring Boot applications:
+
+- Auto-configuration detection
+- Embedded server instrumentation (via HTTP plugins)
+- Actuator endpoint monitoring
+- Spring Data repository operations
+- Spring Security filter chains
+
+<Note>
+Combine the Spring Framework plugin with HTTP server plugins (Tomcat, Undertow, Jetty) for complete Spring Boot instrumentation.
+</Note>
+
+## OSGi Frameworks
+
+OSGi (Open Service Gateway initiative) is a modular system and service platform for Java. The profiler supports the two most popular OSGi implementations.
+
+### Apache Felix
+
+**Module**: `plugins:apache_felix`
+
+**Description**: Instruments the Apache Felix OSGi framework.
+
+**Configuration**: `config/minimal/50main/apache_felix.xml`
+
+#### Monitored Operations
+
+<AccordionGroup>
+  <Accordion title="Bundle Lifecycle">
+    - Bundle installation and activation
+    - Bundle start and stop events
+    - Bundle updates and uninstalls
+    - Bundle state transitions
+    - Dependency resolution
+  </Accordion>
+  
+  <Accordion title="Service Registry">
+    - Service registration and unregistration
+    - Service lookups
+    - Service references
+    - Service factories
+    - Service tracking
+  </Accordion>
+  
+  <Accordion title="Framework Events">
+    - Framework startup and shutdown
+    - Bundle events
+    - Service events
+    - Framework listeners
+  </Accordion>
+</AccordionGroup>
+
+#### What's Captured
+
+- Bundle symbolic names and versions
+- Service interface names
+- Event timestamps
+- State transitions
+- Error conditions
+- Dependency chains
+
+### Eclipse Equinox
+
+**Module**: `plugins:equinox`
+
+**Description**: Instruments the Eclipse Equinox OSGi framework (reference implementation).
+
+**Configuration**: `config/minimal/50main/equinox.xml`
+
+#### Capabilities
+
+Equinox instrumentation provides similar capabilities to Apache Felix:
+
+- Bundle lifecycle management
+- Service registry operations
+- Extension registry
+- Eclipse platform integration
+- Plug-in activation
+
+#### Eclipse Platform Features
+
+- Extension point registration
+- Extension contribution
+- Plug-in lifecycle
+- Workspace operations
+- Job scheduling
+
+<Note>
+Equinox is the OSGi implementation used by the Eclipse IDE and platform. This plugin is particularly useful for monitoring Eclipse RCP (Rich Client Platform) applications.
+</Note>
+
+## Liferay Portal
+
+**Module**: `plugins:liferay`
+
+**Description**: Instruments Liferay portal platform for comprehensive portal and portlet monitoring.
+
+**Configuration**: `config/minimal/50main/liferay.xml`
+
+### Portal Components
+
+<Tabs>
+  <Tab title="Portlets">
+    - Portlet rendering (render phase)
+    - Action processing
+    - Resource serving
+    - Event handling
+    - Portlet preferences
+    - Inter-portlet communication
+  </Tab>
+  <Tab title="Services">
+    - Service Builder services
+    - Remote service calls
+    - Local service invocations
+    - Service context
+    - Permission checking
+  </Tab>
+  <Tab title="Lifecycle">
+    - Portal startup/shutdown
+    - Portlet deployment
+    - Theme activation
+    - Layout rendering
+    - User session management
+  </Tab>
+  <Tab title="Actions">
+    - Struts actions
+    - MVC commands
+    - Action routing
+    - Parameter handling
+  </Tab>
+</Tabs>
+
+### Liferay-Specific Features
+
+#### Portlet Lifecycle
+
+The plugin captures all portlet lifecycle phases:
+
+1. **Init**: Portlet initialization
+2. **Render**: Portlet content rendering
+3. **Action**: Form submission and action processing
+4. **Resource**: AJAX resource serving
+5. **Event**: Inter-portlet event handling
+6. **Destroy**: Portlet cleanup
+
+#### Service Layer
+
+Liferay's Service Builder generates service layers that are automatically instrumented:
+
+- Local services (same JVM)
+- Remote services (SOAP/REST)
+- Service wrappers
+- Transaction boundaries
+- Permission checks
+
+#### Portal Performance
+
+The plugin helps identify performance bottlenecks:
+
+- Slow portlet rendering
+- Heavy service calls
+- Database queries (via database plugins)
+- Theme processing overhead
+- Search operations
+
+## Framework Compatibility
+
+### Supported Versions
+
+| Framework | Plugin Module | Supported Versions |
+|-----------|---------------|--------------------|
+| Spring Framework | `spring` | Spring 4.x, 5.x, 6.x |
+| Spring Boot | `spring` + HTTP plugin | Spring Boot 2.x, 3.x |
+| Apache Felix | `apache_felix` | Apache Felix 5.x, 6.x, 7.x |
+| Eclipse Equinox | `equinox` | Equinox 3.x |
+| Liferay | `liferay` | Liferay 6.x, 7.x |
+
+<Note>
+Refer to the [Supported Versions](/reference/supported-versions) reference for detailed compatibility information.
+</Note>
+
+## Configuration
+
+Framework plugins are automatically enabled when the agent detects the framework in your application's classpath.
+
+### Customizing Framework Instrumentation
+
+You can customize instrumentation through plugin configuration files:
+
+```xml
+<profiler-configuration>
+  <ruleset>
+    <rule>
+      <class>org.springframework.beans.factory.support.AbstractBeanFactory</class>
+      <method>getBean</method>
+      <method-editor>SpringBeanHandler</method-editor>
+    </rule>
+  </ruleset>
+</profiler-configuration>
+```
+
+### Excluding Specific Components
+
+To exclude specific beans, services, or components from instrumentation:
+
+```xml
+<profiler-configuration>
+  <ruleset>
+    <rule>
+      <class>com.myapp.internal.**</class>
+      <do-not-profile/>
+    </rule>
+  </ruleset>
+</profiler-configuration>
+```
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Spring Applications" icon="leaf">
+    Monitor Spring bean lifecycle, transactions, and REST endpoints
+  </Card>
+  <Card title="OSGi Platforms" icon="cubes">
+    Track bundle lifecycle, service dependencies, and framework events
+  </Card>
+  <Card title="Liferay Portals" icon="building">
+    Analyze portlet performance, service calls, and portal operations
+  </Card>
+  <Card title="Microservices" icon="network-wired">
+    Combine with HTTP and messaging plugins for full microservice observability
+  </Card>
+</CardGroup>
+
+## Performance Considerations
+
+<AccordionGroup>
+  <Accordion title="Selective Instrumentation">
+    Framework plugins instrument only key operations to minimize overhead. Not every bean creation or service call is traced - only those that contribute to request processing or significant operations.
+  </Accordion>
+  
+  <Accordion title="Async Processing">
+    Event reporting is asynchronous and doesn't block framework operations. Instrumentation data is queued and processed in background threads.
+  </Accordion>
+  
+  <Accordion title="Smart Sampling">
+    The profiler uses intelligent sampling to reduce overhead while maintaining visibility. High-frequency operations may be sampled rather than fully traced.
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Framework Not Detected">
+    - Verify the framework JARs are in the classpath
+    - Check that the plugin configuration file is present in the agent
+    - Review agent startup logs for instrumentation errors
+    - Ensure framework version is supported
+  </Accordion>
+  
+  <Accordion title="Missing Spring Components">
+    For Spring applications, ensure:
+    - Spring context is fully initialized before profiling starts
+    - Component scanning is configured correctly
+    - Beans are not excluded by profiler configuration
+  </Accordion>
+  
+  <Accordion title="OSGi Bundle Issues">
+    For OSGi frameworks:
+    - Check that the profiler agent has visibility into all bundles
+    - Verify bundle class loading is not interfering with instrumentation
+    - Review OSGi permissions and security policies
+  </Accordion>
+  
+  <Accordion title="Liferay Performance">
+    If you experience performance issues with Liferay:
+    - Increase capture thresholds to reduce trace volume
+    - Exclude internal portlets from instrumentation
+    - Focus on user-facing portlets and services
+  </Accordion>
+</AccordionGroup>
+
+## Integration Examples
+
+### Spring Boot with REST
+
+For a complete Spring Boot REST API monitoring setup:
+
+1. Enable the Spring plugin for bean and transaction tracking
+2. Enable the Spring REST plugin for controller instrumentation
+3. Enable the appropriate HTTP server plugin (Tomcat, Undertow, or Jetty)
+4. Optionally enable database plugins for data layer visibility
+
+### OSGi Application Server
+
+For OSGi-based application servers:
+
+1. Enable Apache Felix or Equinox plugin for framework monitoring
+2. Enable HTTP server plugins for servlet containers
+3. Enable service-specific plugins (database, messaging) as needed
+
+### Liferay Portal
+
+For comprehensive Liferay portal monitoring:
+
+1. Enable the Liferay plugin for portlet and service instrumentation
+2. Enable the Tomcat plugin (Liferay uses Tomcat)
+3. Enable database plugins for Liferay's data layer
+4. Enable search plugins if using Elasticsearch
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Messaging Plugins" icon="message" href="/plugins/messaging">
+    Explore message queue instrumentation
+  </Card>
+  <Card title="Distributed Tracing" icon="diagram-project" href="/plugins/distributed-tracing">
+    Integrate with tracing systems
+  </Card>
+  <Card title="Plugin Development" icon="code" href="/development/plugin-development">
+    Create custom framework plugins
+  </Card>
+  <Card title="Configuration" icon="gear" href="/setup/configuration">
+    Configure framework instrumentation
+  </Card>
+</CardGroup>
