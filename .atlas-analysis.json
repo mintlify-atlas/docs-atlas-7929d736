@@ -1,0 +1,83 @@
+{
+  "projectType": "infrastructure",
+  "projectName": "Qubership Profiler Agent",
+  "projectDescription": "Java agent for continuous profiling and observability with extensive framework instrumentation support",
+  "theme": "aspen",
+  "primaryColor": "#f5e6de",
+  "lightColor": "#8c7c7c",
+  "darkColor": "#4f4a47",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "quickstart", "installation"]
+          },
+          {
+            "group": "Architecture",
+            "pages": ["architecture/overview", "architecture/agent", "architecture/profiler", "architecture/plugins"]
+          },
+          {
+            "group": "Setup & Configuration",
+            "pages": ["setup/agent-setup", "setup/configuration", "setup/deployment"]
+          },
+          {
+            "group": "Plugins",
+            "pages": ["plugins/overview", "plugins/databases", "plugins/http-clients", "plugins/frameworks", "plugins/messaging", "plugins/distributed-tracing"]
+          },
+          {
+            "group": "Operations",
+            "pages": ["operations/cli-tools", "operations/diagnostic-tools", "operations/monitoring", "operations/troubleshooting"]
+          },
+          {
+            "group": "Integration",
+            "pages": ["integration/distributed-tracing", "integration/data-collection", "integration/web-ui"]
+          },
+          {
+            "group": "Development",
+            "pages": ["development/building", "development/plugin-development", "development/contributing"]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Configuration",
+            "pages": ["reference/agent-configuration", "reference/environment-variables"]
+          },
+          {
+            "group": "CLI Commands",
+            "pages": ["reference/cli-commands", "reference/diagtools-commands"]
+          },
+          {
+            "group": "Plugin Reference",
+            "pages": ["reference/plugin-list", "reference/supported-versions"]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Continuous profiling with trace capture for slow requests and errors",
+    "SQL capture with query and bind parameter tracking",
+    "Service call capture and monitoring",
+    "30+ instrumentation plugins for popular frameworks and libraries",
+    "Distributed tracing integration (Brave, Jaeger, Ocelot)",
+    "CLI tools for dump management and data export",
+    "Go-based diagnostic tools for heap and thread dump collection",
+    "Web UI for profiling data visualization"
+  ],
+  "publicApiSurface": [
+    "Agent.premain() - Java agent entry point",
+    "Agent.agentmain() - Dynamic agent attachment",
+    "Bootstrap class - Agent initialization and plugin loading",
+    "CLI commands: DumpCalls, DumpTrace, ExportDump, DownloadDump",
+    "Diagtools commands: heap, dump, scan, schedule, zkConfig",
+    "Plugin API: PluginDescriptor, InstrumentationModule",
+    "Configuration API for agent settings",
+    "Protocol definitions for data transport"
+  ]
+}
